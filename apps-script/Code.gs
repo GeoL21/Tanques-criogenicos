@@ -26,6 +26,8 @@ const HOJA_CFG = 'Config';
 const CARPETA_FOTOS = 'Fotos tanques criogénicos';
 const MINUTOS_REVISION = 5;
 const MODELO_POR_DEFECTO = 'gemini-2.5-flash';
+const IA_NO_DISPONIBLE = 'La IA de Google no estuvo disponible';
+const MAX_REINTENTOS = 12; // cada 5 minutos: hasta 1 hora intentando
 
 const ENC_LEC = ['ID', 'Fecha y hora', 'Sede', 'Nivel (pulg)', '% lleno', 'Cambio (pulg)', 'Movimiento',
   'Consumo por día (pulg)', 'Horas desde la anterior', 'Lectura', 'Técnico', 'Foto', 'Nota de la lectura',
@@ -328,6 +330,7 @@ function procesarTelegram() {
     const props = PropertiesService.getScriptProperties();
     let offset = Number(props.getProperty('OFFSET') || 0);
     const r = telegram('getUpdates', { offset: offset, timeout: 0, allowed_updates: ['message'] });
+    try { reintentarPendientes(); } catch (e) { Logger.log('Reintentos: ' + e.message); }
     if (!r.ok || !r.result.length) return;
     r.result.forEach(function(u) {
       offset = u.update_id + 1;
@@ -423,7 +426,57 @@ function manejarMensaje(msg) {
     'ID de la foto': archivo.getId()
   });
 
-  responderEnTema(msg, reporte(sede, a, tMs, partesFecha, val.valida ? null : val.motivo, aprox));
+  if (ia && ia.errorIA) {
+    responderEnTema(msg, '<b>Tanque ' + sede.nombre + '</b> · ' + fechaCorta(partesFecha(tMs)) + '\n' +
+      'La IA de Google está ocupada en este momento. Reintentaré sola en unos minutos y responderé aquí con el reporte.');
+  } else {
+    responderEnTema(msg, reporte(sede, a, tMs, partesFecha, val.valida ? null : val.motivo, aprox));
+  }
+  actualizarResumen();
+}
+
+/** Vuelve a leer con la IA las fotos que quedaron pendientes porque Google estaba ocupado. */
+function reintentarPendientes() {
+  const props = PropertiesService.getScriptProperties();
+  const pend = leerLecturas().filter(function(l) {
+    // También las de antes de este cambio que dijeron "código 503/500/429" (Google ocupado)
+    return l.estado === 'Dudosa' && l.fotoId && (l.nota.indexOf(IA_NO_DISPONIBLE) === 0 || /código (503|500|429)/.test(l.nota));
+  }).slice(0, 3);
+  if (!pend.length) return;
+  const h = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_LEC);
+  const enc = h.getRange(1, 1, 1, h.getLastColumn()).getValues()[0].map(function(t) { return String(t).trim(); });
+  const poner = function(fila, n, v) { const c = enc.indexOf(n); if (c >= 0) h.getRange(fila, c + 1).setValue(v === null || v === undefined ? '' : v); };
+  const sedes = leerSedes();
+  pend.forEach(function(l) {
+    const sede = sedes.filter(function(x) { return normalizar(x.nombre) === normalizar(l.sede); })[0];
+    if (!sede) return;
+    const k = 'REINTENTO_' + l.id;
+    const n = Number(props.getProperty(k) || 0) + 1;
+    props.setProperty(k, String(n));
+    const ia = leerManometro(DriveApp.getFileById(l.fotoId).getBlob(), sede);
+    if (ia.errorIA && n < MAX_REINTENTOS) return; // sigue ocupada: se intenta en la próxima revisión
+    props.deleteProperty(k);
+    const val = ia.errorIA ? { valida: false, motivo: 'La IA de Google no respondió después de varios intentos. Revisa la foto y escribe el nivel a mano.' } : validarLectura(ia, sede);
+    const aguja = val.valida ? Math.round(Number(ia.lectura) * 10) / 10 : null;
+    const nivel = aguja === null ? null : Math.min(aguja, sede.capacidad);
+    const previas = validasDe(leerLecturas(), sede.nombre, l.t);
+    const a = analizar({ t: l.t, nivel: nivel }, previas, recargasDe(previas), sede);
+    const aprox = !val.valida && !ia.errorIA && ia.lectura !== null && ia.lectura !== undefined && ia.lectura !== '' && !isNaN(Number(ia.lectura)) ? Number(ia.lectura) : null;
+    poner(l.fila, 'Nivel (pulg)', val.valida ? nivel : aprox);
+    poner(l.fila, '% lleno', val.valida ? a.pct : null);
+    poner(l.fila, 'Cambio (pulg)', a.cambio);
+    poner(l.fila, 'Movimiento', val.valida ? a.movimiento : 'Sin lectura');
+    poner(l.fila, 'Consumo por día (pulg)', a.porDia === null ? null : Math.round(a.porDia * 10) / 10);
+    poner(l.fila, 'Horas desde la anterior', a.horas === null ? null : Math.round(a.horas * 10) / 10);
+    poner(l.fila, 'Lectura', val.valida ? 'Automática' : 'Dudosa');
+    poner(l.fila, 'Nota de la lectura', val.valida ? (aguja > sede.capacidad ? 'La aguja marcaba ' + num(aguja) + '; se toma la capacidad del tanque (' + sede.capacidad + ').' : (ia.motivo || '')) : val.motivo);
+    // Responder debajo de la foto original
+    const ids = l.msgId.split(':');
+    if (ids.length === 2 && sede.tema) {
+      responderEnTema({ chat: { id: ids[0] }, message_id: Number(ids[1]), is_topic_message: true, message_thread_id: Number(sede.tema) },
+        reporte(sede, a, l.t, partesFecha, val.valida ? null : val.motivo, aprox));
+    }
+  });
   actualizarResumen();
 }
 
@@ -506,9 +559,15 @@ function leerManometro(blob, sede) {
       modelo = buscarModelo();
       r = pedir(modelo);
     }
+    // Google ocupado (429/500/503): esperar y reintentar
+    for (let i = 0; i < 3 && [429, 500, 503].indexOf(r.getResponseCode()) >= 0; i++) {
+      Utilities.sleep(4000 * (i + 1));
+      r = pedir(modelo);
+    }
     if (r.getResponseCode() !== 200) {
       Logger.log('Gemini ' + modelo + ' respondió ' + r.getResponseCode() + ': ' + r.getContentText().slice(0, 500));
-      return { es_manometro: true, lectura: null, confianza: 'baja', motivo: 'La IA no respondió (código ' + r.getResponseCode() + ').' };
+      return { es_manometro: true, lectura: null, confianza: 'baja', errorIA: true,
+        motivo: IA_NO_DISPONIBLE + ' (código ' + r.getResponseCode() + ').' };
     }
     const j = JSON.parse(r.getContentText());
     const txt = j.candidates[0].content.parts.map(function(p) { return p.text || ''; }).join('');
@@ -516,7 +575,7 @@ function leerManometro(blob, sede) {
     return ia;
   } catch (e) {
     Logger.log('Error con Gemini: ' + e.message);
-    return { es_manometro: true, lectura: null, confianza: 'baja', motivo: 'No se pudo usar la IA: ' + e.message };
+    return { es_manometro: true, lectura: null, confianza: 'baja', errorIA: true, motivo: IA_NO_DISPONIBLE + ': ' + e.message };
   }
 }
 
