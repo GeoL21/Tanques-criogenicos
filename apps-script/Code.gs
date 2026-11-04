@@ -419,13 +419,14 @@ function manejarMensaje(msg) {
   let sede = sedeDeTema(sedes, tema, msg);
 
   // Comandos
-  const cmd = texto.match(/^\/(sede|estado)(@\w+)?\s*(.*)$/i);
+  const cmd = texto.match(/^\/(sede|estado|corregir)(@\w+)?\s*(.*)$/i);
   if (cmd && cmd[1].toLowerCase() === 'sede') {
     const s = sedes.filter(function(x) { return normalizar(x.nombre) === normalizar(cmd[3]); })[0];
     if (!s || !tema) return responderEnTema(msg, 'Escribe /sede Barranquilla o /sede Baranoa dentro del tema de esa sede.');
     guardarTema(s, tema);
     return responderEnTema(msg, 'Listo: este tema queda para el tanque de <b>' + s.nombre + '</b>.');
   }
+  if (cmd && cmd[1].toLowerCase() === 'corregir') return manejarCorregir(msg, sede, cmd[3]);
   if (cmd && cmd[1].toLowerCase() === 'estado') {
     const lista = sede ? [sede] : sedes;
     return responderEnTema(msg, lista.map(function(s) { return textoEstado(s); }).join('\n\n'));
@@ -500,11 +501,13 @@ function manejarMensaje(msg) {
   if (repetida) marcarReemplazada(repetida, tMs, val.valida && a.movimiento === 'Recarga');
 
   if (ia && ia.errorIA) {
-    responderEnTema(msg, aviso + '<b>Tanque ' + sede.nombre + '</b> · ' + fechaCorta(partesFecha(tMs)) + '\n' +
+    const envO = responderEnTema(msg, aviso + '<b>Tanque ' + sede.nombre + '</b> · ' + fechaCorta(partesFecha(tMs)) + '\n' +
       'La IA de Google está ocupada en este momento. Reintentaré sola en unos minutos y responderé aquí con el reporte.');
+    guardarReporte(envO, idLectura);
   } else {
     const esRecarga = val.valida && a.movimiento === 'Recarga';
     const env = responderEnTema(msg, aviso + reporte(sede, a, tMs, partesFecha, val.valida ? null : val.motivo, aprox) + (esRecarga ? '\n\n' + PEDIR_REMISION : ''));
+    guardarReporte(env, idLectura);
     if (esRecarga) registrarRecarga(sede, a, tMs, idLectura, archivo.getUrl(), env && env.ok ? env.result.message_id : '', repetida ? repetida.id : '');
   }
   actualizarResumen();
@@ -549,6 +552,7 @@ function reintentarPendientes() {
       const esRecarga = val.valida && a.movimiento === 'Recarga';
       const env = responderEnTema({ chat: { id: ids[0] }, message_id: Number(ids[1]), is_topic_message: true, message_thread_id: Number(sede.tema) },
         reporte(sede, a, l.t, partesFecha, val.valida ? null : val.motivo, aprox) + (esRecarga ? '\n\n' + PEDIR_REMISION : ''));
+      guardarReporte(env, l.id);
       if (esRecarga) registrarRecarga(sede, a, l.t, l.id, 'https://drive.google.com/file/d/' + l.fotoId + '/view', env && env.ok ? env.result.message_id : '');
     }
   });
@@ -562,6 +566,77 @@ function ponerEn(nombreHoja, fila, nombre, valor) {
   const enc = h.getRange(1, 1, 1, h.getLastColumn()).getValues()[0].map(function(t) { return String(t).trim(); });
   const c = enc.indexOf(nombre);
   if (c >= 0) h.getRange(fila, c + 1).setValue(valor === null || valor === undefined ? '' : valor);
+}
+
+/** Recuerda qué mensaje del bot es el reporte de qué lectura (para /corregir respondiendo al reporte). */
+function guardarReporte(env, idLectura) {
+  if (!env || !env.ok || !idLectura) return;
+  const props = PropertiesService.getScriptProperties();
+  const m = JSON.parse(props.getProperty('REPORTES') || '{}');
+  m[String(env.result.message_id)] = idLectura;
+  const k = Object.keys(m);
+  if (k.length > 300) k.slice(0, k.length - 300).forEach(function(x) { delete m[x]; });
+  props.setProperty('REPORTES', JSON.stringify(m));
+}
+
+/**
+ * /corregir 41 — un técnico corrige el nivel de una lectura desde Telegram.
+ * Respondiendo al reporte del bot o a la foto: corrige esa lectura.
+ * Sin responder, dentro del tema de la sede: corrige la última foto de ese tanque.
+ */
+function manejarCorregir(msg, sedeTema, argumento) {
+  if (!esTecnico(msg.from)) return responderEnTema(msg, 'Solo los técnicos que suben las fotos del tanque pueden corregir lecturas.');
+  const lecturas = leerLecturas();
+  let l = null, porUltima = false;
+  const r = msg.reply_to_message;
+  if (r) {
+    const idPorReporte = JSON.parse(PropertiesService.getScriptProperties().getProperty('REPORTES') || '{}')[String(r.message_id)];
+    const idFoto = msg.chat.id + ':' + r.message_id;
+    l = lecturas.filter(function(x) { return (idPorReporte && x.id === idPorReporte) || x.msgId === idFoto; })[0] || null;
+  }
+  if (!l) {
+    if (!sedeTema) return responderEnTema(msg, 'Escribe <b>/corregir</b> dentro del tema del tanque, o respondiendo al reporte del bot.');
+    l = lecturas.filter(function(x) { return normalizar(x.sede) === normalizar(sedeTema.nombre) && x.estado !== 'Reemplazada'; }).pop() || null;
+    porUltima = true;
+    if (!l) return responderEnTema(msg, 'Aún no hay lecturas del tanque ' + sedeTema.nombre + ' para corregir.');
+  }
+  const sede = leerSedes().filter(function(x) { return normalizar(x.nombre) === normalizar(l.sede); })[0];
+  if (!sede) return;
+  const m = String(argumento || '').match(/\d+(?:[.,]\d+)?/);
+  if (!m) return responderEnTema(msg, 'Escribe el nivel en pulgadas, por ejemplo <b>/corregir 41</b>.');
+  const v = Number(m[0].replace(',', '.'));
+  if (v < 0 || v > sede.escala) return responderEnTema(msg, num(v) + ' no es posible: el manómetro de ' + sede.nombre + ' va de 0 a ' + sede.escala + ' pulg.');
+  const nivel = Math.min(v, sede.capacidad);
+  const quien = [msg.from.first_name, msg.from.last_name].filter(Boolean).join(' ');
+  const antes = esValida(l) ? num(l.nivel) : 'sin lectura';
+
+  ponerEn(HOJA_LEC, l.fila, 'Nivel (pulg)', nivel);
+  ponerEn(HOJA_LEC, l.fila, 'Lectura', 'Corregida');
+  ponerEn(HOJA_LEC, l.fila, 'Nota de la lectura', 'Corregida en Telegram por ' + quien + ' (antes ' + antes + ')' +
+    (v > sede.capacidad ? '; la aguja marcaba ' + num(v) + ', se toma la capacidad' : '') + '.');
+  recalcularTodo();
+
+  // Recalcular esta lectura para el reporte y ajustar la pestaña Recargas
+  const previas = validasDe(leerLecturas(), sede.nombre, l.t);
+  const a = analizar({ t: l.t, nivel: nivel }, previas, recargasDe(previas), sede);
+  const esRecarga = a.movimiento === 'Recarga';
+  const recPrevia = leerRecargas().filter(function(x) { return x.lectura === l.id; })[0];
+  if (!esRecarga && recPrevia && recPrevia.estado === 'Falta remisión') {
+    SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_REC).deleteRow(recPrevia.fila);
+  } else if (esRecarga && recPrevia) {
+    ponerEnRecarga(recPrevia.fila, 'Final (pulg)', a.nivel);
+    ponerEnRecarga(recPrevia.fila, 'Pulgadas recargadas', a.cambio);
+  }
+  const pedir = esRecarga && (!recPrevia || recPrevia.estado === 'Falta remisión');
+  const env = responderEnTema(msg, '✏️ <b>Lectura corregida</b> por ' + escaparHtml(quien) + ': <b>' + antes + ' → ' + num(nivel) + ' pulg</b>' +
+    (porUltima ? '\n<i>Era la última foto de este tema (' + fechaCorta(partesFecha(l.t)) + ').</i>' : '') + '\n\n' +
+    reporte(sede, a, l.t, partesFecha, null, null) + (pedir ? '\n\n' + PEDIR_REMISION : ''));
+  guardarReporte(env, l.id);
+  if (esRecarga && !recPrevia) {
+    registrarRecarga(sede, a, l.t, l.id, l.fotoId ? 'https://drive.google.com/file/d/' + l.fotoId + '/view' : '', env && env.ok ? env.result.message_id : '');
+  } else if (pedir && recPrevia && env && env.ok) {
+    agregarIdBot(recPrevia, env.result.message_id);
+  }
 }
 
 /** La lectura anterior queda como "Reemplazada" (no cuenta en los cálculos). */
@@ -1093,7 +1168,7 @@ function textoEstado(sede) {
   if (r.nivel === null) return '<b>Tanque ' + sede.nombre + '</b>: aún sin lecturas.';
   const L = ['<b>Tanque ' + sede.nombre + '</b> · ' + fechaCorta(partesFecha(r.ultimaT)),
     'Nivel: <b>' + num(r.nivel) + ' pulg</b> (' + r.pct + ' % de ' + sede.capacidad + ')'];
-  if (r.prom7 !== null) L.push('Promedio 7 días: −' + num(r.prom7) + ' pulg/día');
+  if (r.prom7 !== null) L.push('Promedio 7 días: ' + promTxt(r.prom7));
   if (r.recargaT) L.push('Última recarga: ' + partesFecha(r.recargaT).dia + ' ' + MESES_CORTOS[partesFecha(r.recargaT).mes - 1] + ' (' + conSigno(r.recargaCambio) + ' pulg)');
   if (r.estado === 'Necesita recarga') L.push('⚠️ <b>Necesita recarga</b> (nivel de recarga: ' + sede.aviso + ' pulg).');
   else if (r.dias !== null) L.push('Llega a ' + sede.aviso + ' pulg en ~' + num(r.dias) + ' días.');

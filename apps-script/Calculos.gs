@@ -168,7 +168,7 @@ function reporte(sede, a, tMs, partes, motivoDudosa, lecturaAprox) {
     (a.aguja !== null && a.aguja > a.nivel ? ' · la aguja marcaba ' + num(a.aguja) : ''));
   if (a.movimiento === 'Recarga') {
     L.push('<b>Recarga detectada: ' + conSigno(a.cambio) + ' pulg</b> (' + num(a.anterior.nivel) + ' → ' + num(a.nivel) + ')');
-    if (a.promedio !== null) L.push('Promedio 7 días antes de recargar: −' + num(a.promedio) + ' pulg/día');
+    if (a.promedio !== null) L.push('Promedio 7 días antes de recargar: ' + promTxt(a.promedio));
   } else if (a.anterior) {
     const desde = fechaCorta(partes(a.anterior.t));
     const lapso = a.horas < 36 ? num(a.horas, 0) + ' h' : num(a.horas / 24) + ' días';
@@ -177,7 +177,7 @@ function reporte(sede, a, tMs, partes, motivoDudosa, lecturaAprox) {
     } else {
       L.push('Se mantuvo desde ' + desde + ' (' + conSigno(a.cambio) + ' pulg en ' + lapso + ')');
     }
-    if (a.promedio !== null) L.push('Promedio 7 días: −' + num(a.promedio) + ' pulg/día');
+    if (a.promedio !== null) L.push('Promedio 7 días: ' + promTxt(a.promedio));
     if (a.ultimaRecarga) {
       L.push('Última recarga: ' + partes(a.ultimaRecarga.t).dia + ' ' + MESES_CORTOS[partes(a.ultimaRecarga.t).mes - 1] +
         ' (' + conSigno(a.ultimaRecarga.cambio) + ' pulg)');
@@ -193,6 +193,11 @@ function reporte(sede, a, tMs, partes, motivoDudosa, lecturaAprox) {
     L.push('Al ritmo promedio llega a ' + sede.aviso + ' pulg en ~' + num(a.diasHastaRecarga) + ' días.');
   }
   return L.join('\n');
+}
+
+/** Consumo promedio: "−2,8 pulg/día", o "sin consumo" si es casi cero. */
+function promTxt(p) {
+  return p < 0.05 ? 'sin consumo' : '−' + num(p) + ' pulg/día';
 }
 
 function escaparHtml(s) {

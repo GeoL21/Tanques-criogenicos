@@ -52,6 +52,7 @@ Si el bot responde que no sabe de qué tanque es el tema, escribir en ese tema `
 ## Uso diario
 
 - `/estado` en un tema: el bot responde con el estado de ese tanque.
+- `/corregir 41`: un técnico corrige el nivel si la IA se equivocó. Respondiendo al reporte del bot o a la foto, corrige esa lectura; escrito solo en el tema, corrige la última foto de ese tanque. La fila queda *Corregida* con quién la corrigió, todo se recalcula y el bot manda el reporte nuevo.
 - Lectura **Dudosa** o mal leída: escribir el nivel correcto en *Nivel (pulg)*. La fila pasa sola a **Corregida** y todo se recalcula en unos segundos.
 - Si un técnico manda otra foto del mismo tanque antes de 30 minutos, la nueva **reemplaza** a la anterior (queda como *Reemplazada* y no cuenta en los cálculos).
 - A las 7:00 a. m. el bot avisa en el tema si un tanque lleva más de 24 horas sin foto.
