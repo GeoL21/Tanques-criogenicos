@@ -10,7 +10,9 @@ const REGLAS = {
   recargaMin: 3,      // subir 3 pulg o más = recarga
   mantuvoMax: 1,      // cambiar 1 pulg o menos = se mantuvo
   margenCapacidad: 8, // se acepta hasta capacidad + 8 (la aguja puede pasar un poco)
-  diasPromedio: 7
+  diasPromedio: 7,
+  diasPronto: 7,      // faltan 7 días o menos para el nivel de recarga = "Recarga pronto"
+  minutosRepetida: 30 // otra foto del mismo tanque antes de 30 min reemplaza a la anterior
 };
 
 const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -185,6 +187,8 @@ function reporte(sede, a, tMs, partes, motivoDudosa, lecturaAprox) {
   }
   if (a.bajoNivel) {
     L.push('⚠️ <b>En el nivel de recarga o por debajo (' + sede.aviso + ' pulg).</b> Necesita recarga.');
+  } else if (a.diasHastaRecarga !== null && a.diasHastaRecarga <= REGLAS.diasPronto) {
+    L.push('🟠 <b>Recarga pronto:</b> al ritmo promedio llega a ' + sede.aviso + ' pulg en ~' + num(a.diasHastaRecarga) + ' días.');
   } else if (a.diasHastaRecarga !== null) {
     L.push('Al ritmo promedio llega a ' + sede.aviso + ' pulg en ~' + num(a.diasHastaRecarga) + ' días.');
   }

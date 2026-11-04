@@ -52,5 +52,8 @@ Si el bot responde que no sabe de qué tanque es el tema, escribir en ese tema `
 ## Uso diario
 
 - `/estado` en un tema: el bot responde con el estado de ese tanque.
-- Lectura **Dudosa** en la hoja: la IA no pudo leer bien la foto. Escribir el nivel correcto en *Nivel (pulg)*, cambiar *Lectura* a **Corregida** y usar **Tanques → Recalcular todo**.
+- Lectura **Dudosa** o mal leída: escribir el nivel correcto en *Nivel (pulg)*. La fila pasa sola a **Corregida** y todo se recalcula en unos segundos.
+- Si un técnico manda otra foto del mismo tanque antes de 30 minutos, la nueva **reemplaza** a la anterior (queda como *Reemplazada* y no cuenta en los cálculos).
+- A las 7:00 a. m. el bot avisa en el tema si un tanque lleva más de 24 horas sin foto.
+- **Recarga pronto**: cuando faltan 7 días o menos para el nivel de recarga, el reporte lo resalta en naranja.
 - Para cambiar capacidad o nivel de recarga: pestaña **Config**.

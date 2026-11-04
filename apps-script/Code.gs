@@ -45,7 +45,8 @@ const HORA_RECORDATORIO = 7; // 7:00 a. m.
 const COLUMNAS_CHIP = ['Foto', 'Foto del nivel'];
 
 const MOVIMIENTOS = ['Consumo', 'Se mantuvo', 'Recarga', 'Primera lectura', 'Sin lectura'];
-const ESTADOS_LECTURA = ['Automática', 'Dudosa', 'Corregida'];
+const ESTADOS_LECTURA = ['Automática', 'Dudosa', 'Corregida', 'Reemplazada'];
+const VERSION_LISTAS = '2'; // sube cuando cambian las opciones de los desplegables
 
 /** Cómo es cada manómetro, para que la IA lo lea bien. */
 const DESCRIPCION_MANOMETRO = {
@@ -384,6 +385,7 @@ function procesarTelegram() {
   if (!lock.tryLock(5000)) return;
   try {
     const props = PropertiesService.getScriptProperties();
+    if (props.getProperty('LISTAS_V') !== VERSION_LISTAS) actualizarListas();
     let offset = Number(props.getProperty('OFFSET') || 0);
     const r = telegram('getUpdates', { offset: offset, timeout: 0, allowed_updates: ['message'] });
     try { reintentarPendientes(); } catch (e) { Logger.log('Reintentos: ' + e.message); }
@@ -462,8 +464,15 @@ function manejarMensaje(msg) {
   const aguja = val.valida ? Math.round(Number(ia.lectura) * 10) / 10 : null;
   const nivel = aguja === null ? null : Math.min(aguja, sede.capacidad);
 
+  // ¿Otra foto del mismo tanque hace menos de 30 min? La nueva reemplaza a la anterior.
+  const repetida = lecturas.filter(function(l) {
+    return normalizar(l.sede) === normalizar(sede.nombre) && l.estado !== 'Reemplazada' &&
+      l.t <= tMs && tMs - l.t < REGLAS.minutosRepetida * 60000;
+  }).pop() || null;
+  const base = repetida ? lecturas.filter(function(l) { return l !== repetida; }) : lecturas;
+
   // Cálculos
-  const previas = validasDe(lecturas, sede.nombre, tMs);
+  const previas = validasDe(base, sede.nombre, tMs);
   const a = analizar({ t: tMs, nivel: nivel }, previas, recargasDe(previas), sede);
 
   const aprox = !val.valida && ia && ia.lectura !== null && ia.lectura !== undefined && ia.lectura !== '' && !isNaN(Number(ia.lectura)) ? Number(ia.lectura) : null;
@@ -487,13 +496,16 @@ function manejarMensaje(msg) {
     'ID de la foto': archivo.getId()
   });
 
+  const aviso = repetida ? '♻️ <i>Esta foto reemplaza la de las ' + horaAmPm(partesFecha(repetida.t).hora, partesFecha(repetida.t).min) + '</i>\n' : '';
+  if (repetida) marcarReemplazada(repetida, tMs, val.valida && a.movimiento === 'Recarga');
+
   if (ia && ia.errorIA) {
-    responderEnTema(msg, '<b>Tanque ' + sede.nombre + '</b> · ' + fechaCorta(partesFecha(tMs)) + '\n' +
+    responderEnTema(msg, aviso + '<b>Tanque ' + sede.nombre + '</b> · ' + fechaCorta(partesFecha(tMs)) + '\n' +
       'La IA de Google está ocupada en este momento. Reintentaré sola en unos minutos y responderé aquí con el reporte.');
   } else {
     const esRecarga = val.valida && a.movimiento === 'Recarga';
-    const env = responderEnTema(msg, reporte(sede, a, tMs, partesFecha, val.valida ? null : val.motivo, aprox) + (esRecarga ? '\n\n' + PEDIR_REMISION : ''));
-    if (esRecarga) registrarRecarga(sede, a, tMs, idLectura, archivo.getUrl(), env && env.ok ? env.result.message_id : '');
+    const env = responderEnTema(msg, aviso + reporte(sede, a, tMs, partesFecha, val.valida ? null : val.motivo, aprox) + (esRecarga ? '\n\n' + PEDIR_REMISION : ''));
+    if (esRecarga) registrarRecarga(sede, a, tMs, idLectura, archivo.getUrl(), env && env.ok ? env.result.message_id : '', repetida ? repetida.id : '');
   }
   actualizarResumen();
 }
@@ -541,6 +553,52 @@ function reintentarPendientes() {
     }
   });
   actualizarResumen();
+}
+
+
+/** Escribe un valor en una celda de una hoja, por nombre de encabezado. */
+function ponerEn(nombreHoja, fila, nombre, valor) {
+  const h = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nombreHoja);
+  const enc = h.getRange(1, 1, 1, h.getLastColumn()).getValues()[0].map(function(t) { return String(t).trim(); });
+  const c = enc.indexOf(nombre);
+  if (c >= 0) h.getRange(fila, c + 1).setValue(valor === null || valor === undefined ? '' : valor);
+}
+
+/** La lectura anterior queda como "Reemplazada" (no cuenta en los cálculos). */
+function marcarReemplazada(l, tNueva, nuevaEsRecarga) {
+  const p = partesFecha(tNueva);
+  ponerEn(HOJA_LEC, l.fila, 'Lectura', 'Reemplazada');
+  ponerEn(HOJA_LEC, l.fila, 'Nota de la lectura', 'Reemplazada por la foto de las ' + horaAmPm(p.hora, p.min) + (l.nota ? ' · ' + l.nota : ''));
+  // Si la anterior había creado una recarga sin remisión y la nueva ya no es recarga, se quita esa fila.
+  if (!nuevaEsRecarga) {
+    const r = leerRecargas().filter(function(x) { return x.lectura === l.id && x.estado === 'Falta remisión'; })[0];
+    if (r) SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_REC).deleteRow(r.fila);
+  }
+}
+
+/** Pone en los desplegables de las tablas las opciones nuevas (se hace sola una vez). */
+function actualizarListas() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  try {
+    const info = Sheets.Spreadsheets.get(ss.getId(), { fields: 'sheets(tables(tableId,name,columnProperties))' });
+    const pedidos = [];
+    info.sheets.forEach(function(h) {
+      (h.tables || []).forEach(function(t) {
+        if (t.name !== 'Lecturas') return;
+        const cols = (t.columnProperties || []).map(function(c) {
+          if (c.columnName === 'Lectura') {
+            c.dataValidationRule = { condition: { type: 'ONE_OF_LIST', values: ESTADOS_LECTURA.map(function(v) { return { userEnteredValue: v }; }) } };
+          }
+          return c;
+        });
+        pedidos.push({ updateTable: { table: { tableId: t.tableId, columnProperties: cols }, fields: 'columnProperties' } });
+      });
+    });
+    if (pedidos.length) Sheets.Spreadsheets.batchUpdate({ requests: pedidos }, ss.getId());
+    PropertiesService.getScriptProperties().setProperty('LISTAS_V', VERSION_LISTAS);
+  } catch (e) {
+    Logger.log('No se pudieron actualizar los desplegables: ' + e.message);
+  }
 }
 
 
@@ -617,8 +675,18 @@ function agregarIdBot(rec, id) {
 }
 
 /** Crea la fila de la recarga (una sola vez por lectura) con estado "Falta remisión". */
-function registrarRecarga(sede, a, tMs, idLectura, fotoUrl, idMensajeBot) {
-  if (leerRecargas().some(function(r) { return r.lectura === idLectura; })) return;
+function registrarRecarga(sede, a, tMs, idLectura, fotoUrl, idMensajeBot, idReemplazada) {
+  const todas = leerRecargas();
+  if (todas.some(function(r) { return r.lectura === idLectura; })) return;
+  // La foto reemplaza a otra que ya había creado la recarga: se actualiza esa misma fila.
+  const previa = idReemplazada ? todas.filter(function(r) { return r.lectura === idReemplazada; })[0] : null;
+  if (previa) {
+    ponerEnRecarga(previa.fila, 'Final (pulg)', a.nivel);
+    ponerEnRecarga(previa.fila, 'Pulgadas recargadas', a.cambio);
+    ponerEnRecarga(previa.fila, 'ID de la lectura', idLectura);
+    agregarIdBot(previa, idMensajeBot);
+    return;
+  }
   agregarFilaEn(HOJA_REC, 'Recargas', {
     'ID': 'R-' + idLectura.replace(/^T-/, ''),
     'Fecha y hora': new Date(tMs),
@@ -655,11 +723,23 @@ function manejarRespuestaRemision(msg) {
   if (env && env.ok) agregarIdBot(rec, env.result.message_id);
 }
 
-/** Se ejecuta a las 7:00 a. m.: recuerda las recargas que aún no tienen remisión. */
+/** Se ejecuta a las 7:00 a. m.: avisa si falta la foto de algún tanque y recuerda las remisiones pendientes. */
 function recordarRemisiones() {
   const grupo = PropertiesService.getScriptProperties().getProperty('GRUPO_ID');
   if (!grupo) return;
   const sedes = leerSedes();
+  // Tanques sin foto en más de 24 horas
+  const lecturas = leerLecturas();
+  sedes.forEach(function(sede) {
+    if (!sede.tema) return;
+    const ult = lecturas.filter(function(l) { return normalizar(l.sede) === normalizar(sede.nombre); }).pop();
+    if (!ult || Date.now() - ult.t < 24 * 3600000) return;
+    telegram('sendMessage', {
+      chat_id: grupo, message_thread_id: Number(sede.tema), parse_mode: 'HTML',
+      text: '📷 <b>Falta la foto del tanque ' + sede.nombre + '.</b> La última llegó el ' + fechaCorta(partesFecha(ult.t)) +
+        '. Sube una foto del manómetro de nivel en este tema.'
+    });
+  });
   leerRecargas().filter(function(r) { return r.estado === 'Falta remisión'; }).forEach(function(r) {
     const sede = sedes.filter(function(x) { return normalizar(x.nombre) === normalizar(r.sede); })[0];
     if (!sede || !sede.tema) return;
@@ -912,26 +992,59 @@ function ponerChip(ss, h, fila, col, url) {
   }
 }
 
-/** Menú: recalcula %, cambio, movimiento y consumo de todas las filas (útil tras corregir lecturas a mano). */
+/** Menú: recalcula %, cambio, movimiento y consumo de todas las filas (útil tras corregir lecturas a mano).
+ *  Lee y escribe cada columna de una sola vez, para que sea rápido aunque haya miles de lecturas. */
 function recalcularTodo() {
   const h = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_LEC);
+  const n = h.getLastRow() - 1;
+  if (n < 1) return actualizarResumen();
   const enc = h.getRange(1, 1, 1, h.getLastColumn()).getValues()[0].map(function(t) { return String(t).trim(); });
+  const nombres = ['% lleno', 'Cambio (pulg)', 'Movimiento', 'Consumo por día (pulg)', 'Horas desde la anterior'];
+  const col = {};
+  nombres.forEach(function(nm) { const c = enc.indexOf(nm); if (c >= 0) col[nm] = { c: c + 1, v: h.getRange(2, c + 1, n, 1).getValues() }; });
+  const poner = function(fila, nm, v) { if (col[nm]) col[nm].v[fila - 2][0] = (v === null || v === undefined) ? '' : v; };
   const lecturas = leerLecturas();
   leerSedes().forEach(function(sede) {
     const previas = [];
     lecturas.filter(function(l) { return normalizar(l.sede) === normalizar(sede.nombre); }).forEach(function(l) {
       if (!esValida(l)) return;
       const a = analizar({ t: l.t, nivel: l.nivel }, previas.slice(), recargasDe(previas), sede);
-      const poner = function(n, v) { const c = enc.indexOf(n); if (c >= 0) h.getRange(l.fila, c + 1).setValue(v === null ? '' : v); };
-      poner('% lleno', a.pct);
-      poner('Cambio (pulg)', a.cambio);
-      poner('Movimiento', a.movimiento);
-      poner('Consumo por día (pulg)', a.porDia === null ? null : Math.round(a.porDia * 10) / 10);
-      poner('Horas desde la anterior', a.horas === null ? null : Math.round(a.horas * 10) / 10);
+      poner(l.fila, '% lleno', a.pct);
+      poner(l.fila, 'Cambio (pulg)', a.cambio);
+      poner(l.fila, 'Movimiento', a.movimiento);
+      poner(l.fila, 'Consumo por día (pulg)', a.porDia === null ? null : Math.round(a.porDia * 10) / 10);
+      poner(l.fila, 'Horas desde la anterior', a.horas === null ? null : Math.round(a.horas * 10) / 10);
       previas.push({ t: l.t, nivel: l.nivel });
     });
   });
+  Object.keys(col).forEach(function(nm) { h.getRange(2, col[nm].c, n, 1).setValues(col[nm].v); });
   actualizarResumen();
+}
+
+/** Al corregir a mano el nivel en Lecturas: la fila pasa a "Corregida" y todo se recalcula solo. */
+function onEdit(e) {
+  try {
+    if (!e || !e.range) return;
+    const h = e.range.getSheet();
+    if (h.getName() !== HOJA_LEC || e.range.getLastRow() < 2) return;
+    const enc = h.getRange(1, 1, 1, h.getLastColumn()).getValues()[0].map(function(t) { return String(t).trim(); });
+    const cNivel = enc.indexOf('Nivel (pulg)') + 1, cLec = enc.indexOf('Lectura') + 1;
+    const toca = function(c) { return c >= e.range.getColumn() && c <= e.range.getLastColumn(); };
+    if (!toca(cNivel) && !toca(cLec)) return;
+    if (toca(cNivel) && cLec > 0) {
+      const f0 = Math.max(2, e.range.getRow()), nf = e.range.getLastRow() - f0 + 1;
+      const niv = h.getRange(f0, cNivel, nf, 1).getValues(), lec = h.getRange(f0, cLec, nf, 1).getValues();
+      let cambio = false;
+      for (let i = 0; i < nf; i++) {
+        if (niv[i][0] !== '' && niv[i][0] !== null && lec[i][0] !== 'Corregida' && lec[i][0] !== 'Reemplazada') { lec[i][0] = 'Corregida'; cambio = true; }
+      }
+      if (cambio) h.getRange(f0, cLec, nf, 1).setValues(lec);
+    }
+    recalcularTodo();
+    e.source.toast('Cálculos actualizados con la corrección.', 'Tanques', 4);
+  } catch (err) {
+    Logger.log('onEdit: ' + err.message);
+  }
 }
 
 
@@ -948,7 +1061,7 @@ function resumenSede(sede, lecturas) {
   const p7 = promedioConsumo(serie, ahora, 7);
   const p30 = promedioConsumo(serie, ahora, 30);
   const dias = ult && p7 && p7 > 0.2 && ult.nivel > sede.aviso ? (ult.nivel - sede.aviso) / p7 : null;
-  const estado = !ult ? 'Sin lecturas' : (ult.nivel <= sede.aviso ? 'Necesita recarga' : (dias !== null && dias < 2 ? 'Recarga pronto' : 'Normal'));
+  const estado = !ult ? 'Sin lecturas' : (ult.nivel <= sede.aviso ? 'Necesita recarga' : (dias !== null && dias <= REGLAS.diasPronto ? 'Recarga pronto' : 'Normal'));
   return {
     sede: sede.nombre, capacidad: sede.capacidad, escala: sede.escala, aviso: sede.aviso,
     nivel: ult ? ult.nivel : null, pct: ult ? porcentaje(ult.nivel, sede.capacidad) : null, ultimaT: ult ? ult.t : null,
