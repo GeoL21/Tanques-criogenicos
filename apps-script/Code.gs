@@ -78,11 +78,9 @@ function configurar() {
   const lec = asegurarHoja(ss, HOJA_LEC, ENC_LEC);
   const cfg = asegurarHoja(ss, HOJA_CFG, ENC_CFG);
   const res = asegurarHoja(ss, HOJA_RES, ENC_RES);
-  const sobra = ss.getSheetByName('Hoja 1') || ss.getSheetByName('Sheet1');
-  if (sobra && sobra.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(sobra);
 
   // Datos de las sedes
-  if (cfg.getLastRow() < 2) {
+  if (!String(cfg.getRange(2, 1).getValue()).trim()) {
     cfg.getRange(2, 1, 2, 4).setValues([
       ['Barranquilla', 136, 200, 40],
       ['Baranoa', 80, 100, 24]
@@ -94,8 +92,7 @@ function configurar() {
   crearTablas(ss, lec, cfg);
 
   // Formato del resumen (sin tabla)
-  res.getRange(1, 1, 1, ENC_RES.length).setFontWeight('bold').setBackground('#6A1B3A').setFontColor('#FFFFFF');
-  res.setFrozenRows(1);
+  try { res.getRange(1, 1, 1, ENC_RES.length).setFontWeight('bold').setBackground('#6A1B3A').setFontColor('#FFFFFF'); } catch (e) {}
 
   // Carpeta de fotos
   if (!props.getProperty('CARPETA_ID')) {
@@ -122,8 +119,12 @@ function configurar() {
 function asegurarHoja(ss, nombre, encabezados) {
   let h = ss.getSheetByName(nombre);
   if (!h) h = ss.insertSheet(nombre);
-  if (h.getLastRow() === 0) h.getRange(1, 1, 1, encabezados.length).setValues([encabezados]);
-  h.setFrozenRows(1);
+  // Encabezados solo si la fila 1 está vacía (no se usa getLastRow, que falla si la hoja quedó a medias)
+  const fila1 = h.getRange(1, 1, 1, encabezados.length).getValues()[0];
+  if (fila1.every(function(v) { return v === '' || v === null; })) {
+    h.getRange(1, 1, 1, encabezados.length).setValues([encabezados]);
+  }
+  try { h.setFrozenRows(1); } catch (e) {}
   return h;
 }
 
@@ -153,7 +154,7 @@ function crearTablas(ss, lec, cfg) {
   if (existentes.indexOf('Lecturas') < 0) {
     pedidos.push({ addTable: { table: {
       name: 'Lecturas',
-      range: { sheetId: lec.getSheetId(), startRowIndex: 0, endRowIndex: Math.max(2, lec.getLastRow()), startColumnIndex: 0, endColumnIndex: ENC_LEC.length },
+      range: { sheetId: lec.getSheetId(), startRowIndex: 0, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: ENC_LEC.length },
       columnProperties: ENC_LEC.map(function(n, i) {
         const c = { columnIndex: i, columnName: n, columnType: tipos[n] };
         if (validaciones[n]) c.dataValidationRule = validaciones[n];
@@ -164,7 +165,7 @@ function crearTablas(ss, lec, cfg) {
   if (existentes.indexOf('Config') < 0) {
     pedidos.push({ addTable: { table: {
       name: 'Config',
-      range: { sheetId: cfg.getSheetId(), startRowIndex: 0, endRowIndex: Math.max(2, cfg.getLastRow()), startColumnIndex: 0, endColumnIndex: ENC_CFG.length },
+      range: { sheetId: cfg.getSheetId(), startRowIndex: 0, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: ENC_CFG.length },
       columnProperties: [
         { columnIndex: 0, columnName: ENC_CFG[0], columnType: 'TEXT' },
         { columnIndex: 1, columnName: ENC_CFG[1], columnType: 'DOUBLE' },
