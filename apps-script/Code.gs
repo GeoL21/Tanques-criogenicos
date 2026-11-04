@@ -56,6 +56,7 @@ function onOpen() {
     .addItem('Revisar Telegram ahora', 'procesarTelegram')
     .addItem('Recalcular todo', 'recalcularTodo')
     .addItem('Probar la IA con la última foto', 'probarIA')
+    .addItem('Ver modelo de Gemini', 'probarModelo')
     .addSeparator()
     .addItem('Configurar (primera vez)', 'configurar')
     .addToUi();
@@ -375,9 +376,7 @@ function manejarMensaje(msg) {
   else if (msg.document && /^image\//.test(msg.document.mime_type || '')) fileId = msg.document.file_id;
   if (!fileId) return;
 
-  if (!sede) {
-    return responderEnTema(msg, 'No sé de qué tanque es este tema. Escribe aquí <b>/sede Barranquilla</b> o <b>/sede Baranoa</b> y vuelve a subir la foto.');
-  }
+  if (!sede) return; // tema que no es de un tanque: el bot no dice nada
 
   const lecturas = leerLecturas();
   const msgId = msg.chat.id + ':' + msg.message_id;
@@ -432,12 +431,13 @@ function sedeDeTema(sedes, tema, msg) {
   if (tema) {
     const s = sedes.filter(function(x) { return x.tema === tema; })[0];
     if (s) return s;
-    // Primera vez: se reconoce por el nombre del tema ("Fotos del tanque Baranoa")
+    // Primera vez: se reconoce por el nombre del tema, que debe decir "tanque" y la sede
+    // ("Fotos del tanque Baranoa"). Así no se confunde con "Reporte de equipos Barranquilla".
     const creado = msg.reply_to_message && msg.reply_to_message.forum_topic_created;
     if (creado) {
       const n = normalizar(creado.name);
-      const s2 = sedes.filter(function(x) { return n.indexOf(normalizar(x.nombre)) >= 0; })[0];
-      if (s2) { guardarTema(s2, tema); return s2; }
+      const s2 = n.indexOf('tanque') >= 0 && sedes.filter(function(x) { return n.indexOf(normalizar(x.nombre)) >= 0; })[0];
+      if (s2 && !s2.tema) { guardarTema(s2, tema); return s2; }
     }
   }
   return null;
@@ -455,9 +455,28 @@ function guardarTema(sede, tema) {
  * GEMINI (lectura de la aguja)
  ***********************/
 
+/** Busca en la lista de modelos de Gemini el "flash" más reciente que pueda leer imágenes. */
+function buscarModelo() {
+  const props = PropertiesService.getScriptProperties();
+  const r = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', {
+    muteHttpExceptions: true, headers: { 'x-goog-api-key': props.getProperty('GEMINI_KEY') }
+  });
+  if (r.getResponseCode() !== 200) throw new Error('No se pudo consultar la lista de modelos (código ' + r.getResponseCode() + ').');
+  const lista = (JSON.parse(r.getContentText()).models || []).filter(function(m) {
+    const n = m.name.toLowerCase();
+    return (m.supportedGenerationMethods || []).indexOf('generateContent') >= 0 && n.indexOf('flash') >= 0 &&
+      !/lite|image|tts|audio|live|preview|exp|thinking|embedding/.test(n);
+  }).map(function(m) { return m.name.replace('models/', ''); });
+  if (!lista.length) throw new Error('No hay un modelo Gemini flash disponible para esta clave.');
+  const ver = function(n) { const m = n.match(/gemini-(\d+(?:\.\d+)?)/); return m ? Number(m[1]) : 0; };
+  lista.sort(function(a, b) { return ver(b) - ver(a) || a.length - b.length; });
+  props.setProperty('GEMINI_MODELO_AUTO', lista[0]);
+  return lista[0];
+}
+
 function leerManometro(blob, sede) {
   const props = PropertiesService.getScriptProperties();
-  const modelo = props.getProperty('GEMINI_MODELO') || MODELO_POR_DEFECTO;
+  let modelo = props.getProperty('GEMINI_MODELO') || props.getProperty('GEMINI_MODELO_AUTO') || MODELO_POR_DEFECTO;
   const desc = DESCRIPCION_MANOMETRO[normalizar(sede.nombre)] ||
     ('Manómetro de nivel con escala de 0 a ' + sede.escala + ' pulgadas de agua.');
   const prompt =
@@ -476,11 +495,19 @@ function leerManometro(blob, sede) {
     generationConfig: { temperature: 0, responseMimeType: 'application/json' }
   };
   try {
-    const r = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + modelo + ':generateContent', {
-      method: 'post', contentType: 'application/json', payload: JSON.stringify(cuerpo), muteHttpExceptions: true,
-      headers: { 'x-goog-api-key': props.getProperty('GEMINI_KEY') }
-    });
+    const pedir = function(m) {
+      return UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent', {
+        method: 'post', contentType: 'application/json', payload: JSON.stringify(cuerpo), muteHttpExceptions: true,
+        headers: { 'x-goog-api-key': props.getProperty('GEMINI_KEY') }
+      });
+    };
+    let r = pedir(modelo);
+    if (r.getResponseCode() === 404) { // el modelo ya no existe: se busca el vigente y se reintenta
+      modelo = buscarModelo();
+      r = pedir(modelo);
+    }
     if (r.getResponseCode() !== 200) {
+      Logger.log('Gemini ' + modelo + ' respondió ' + r.getResponseCode() + ': ' + r.getContentText().slice(0, 500));
       return { es_manometro: true, lectura: null, confianza: 'baja', motivo: 'La IA no respondió (código ' + r.getResponseCode() + ').' };
     }
     const j = JSON.parse(r.getContentText());
@@ -488,8 +515,16 @@ function leerManometro(blob, sede) {
     const ia = JSON.parse(txt.replace(/^```(json)?|```$/g, '').trim());
     return ia;
   } catch (e) {
-    return { es_manometro: true, lectura: null, confianza: 'baja', motivo: 'No se pudo leer la respuesta de la IA.' };
+    Logger.log('Error con Gemini: ' + e.message);
+    return { es_manometro: true, lectura: null, confianza: 'baja', motivo: 'No se pudo usar la IA: ' + e.message };
   }
+}
+
+/** Menú: muestra qué modelo de Gemini se está usando (lo busca si hace falta). */
+function probarModelo() {
+  let m;
+  try { m = buscarModelo(); } catch (e) { m = 'Error: ' + e.message; }
+  SpreadsheetApp.getUi().alert('Modelo de Gemini: ' + m);
 }
 
 /** Menú: prueba la IA con la foto más reciente de la carpeta (no guarda nada). */
