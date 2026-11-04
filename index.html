@@ -119,6 +119,21 @@ nav .ninst{display:none}
 .ul b{display:block;font-size:14px}
 .ul small{display:block;font-size:12.5px;color:var(--sec);margin-top:2px}
 .ul .v{font-size:18px;font-weight:800;color:var(--vino);font-variant-numeric:tabular-nums}
+/* Movimiento (solo en esta app, de prueba) */
+.tq i::before{content:"";position:absolute;left:0;right:0;top:-7px;height:8px;background:inherit;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 10' preserveAspectRatio='none'%3E%3Cpath d='M0 5Q10 0 20 5T40 5V10H0Z'/%3E%3C/svg%3E") 0 0/40px 8px repeat-x;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 10' preserveAspectRatio='none'%3E%3Cpath d='M0 5Q10 0 20 5T40 5V10H0Z'/%3E%3C/svg%3E") 0 0/40px 8px repeat-x;animation:ola 2.6s linear infinite}
+@keyframes ola{to{-webkit-mask-position:40px 0;mask-position:40px 0}}
+.pill.mal{position:relative}
+.pill.mal::after{content:"";position:absolute;inset:0;border-radius:12px;border:2px solid var(--mal);animation:late 2s var(--ease-out) infinite;pointer-events:none}
+@keyframes late{0%{opacity:.9;transform:scale(1)}70%,100%{opacity:0;transform:scale(1.18)}}
+#btnAct{display:inline-flex;align-items:center;gap:6px}
+#btnAct svg{width:16px;height:16px;flex:none}
+#btnAct:disabled svg{animation:gira .8s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
+.sinfoto{display:flex;gap:10px;align-items:center;margin-top:8px;background:var(--avisof);border:1px solid #F0D29A;border-radius:12px;padding:8px 10px;font-size:12.5px;color:#5c3a00;line-height:1.35}
+.sinfoto .cam{width:34px;height:34px;border-radius:10px;background:var(--aviso);color:#fff;display:grid;place-items:center;flex:none;animation:mueve 600ms var(--ease-out) 300ms 1}
+.sinfoto .cam svg{width:19px;height:19px}
+@keyframes mueve{0%,100%{transform:rotate(0)}20%{transform:rotate(-12deg)}40%{transform:rotate(10deg)}60%{transform:rotate(-6deg)}80%{transform:rotate(3deg)}}
+@media (prefers-reduced-motion:reduce){.tq i::before,.pill.mal::after,#btnAct:disabled svg,.sinfoto .cam{animation:none}}
 @media (min-width:700px){.top{grid-template-columns:1fr 1fr}.top .tc{grid-column:auto}}
 @media (prefers-reduced-motion:reduce){button:active:not(:disabled){transform:none}.barra i,.tq i{transition:none}}
 
@@ -142,7 +157,7 @@ nav .ninst{display:none}
 }
 </style></head><body>
 <header><img src="logo.jpg" alt=""><div><h1>Tanques criogénicos</h1><p id="sub">Clínica Reina Catalina · Barranquilla y Baranoa</p></div><button id="btnInst" class="hbtn oculto" aria-label="Instalar app" onclick="instalar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg></button></header>
-<div class="estado carga" id="est" role="status"><span id="estTxt">Cargando…</span><button id="btnAct" onclick="cargar()">Actualizar</button></div>
+<div class="estado carga" id="est" role="status"><span id="estTxt">Cargando…</span><button id="btnAct" onclick="cargar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></svg>Actualizar</button></div>
 
 <div style="padding:0 12px"><div id="inst" class="inst oculto" role="region" aria-label="Instalar la app"><div class="f"><img src="icon-192.png" alt=""><div class="tx"><b>Instala el tablero</b><small>Ábrelo desde la pantalla de inicio, sin la barra del navegador.</small></div><button class="x" aria-label="Ahora no" onclick="cerrarInst()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg></button></div><button id="instGo" class="go" onclick="instalar()">Instalar</button><p id="instPasos" class="oculto">En Safari toca <b style="display:inline;font-size:inherit;color:inherit">Compartir</b> (el cuadro con la flecha hacia arriba) y luego <b style="display:inline;font-size:inherit;color:inherit">Agregar a inicio</b>.</p></div>
 </div>
@@ -276,7 +291,14 @@ function tanqueCard(s){
   <div class="tx"><div class="sd">${esc(s.sede)}<small>${fechaHora(s.ultimaT)} · ${hace(s.ultimaT)}</small></div>
    <div class="nv">${num(s.nivel)} <span>pulg</span></div>
    <div class="pc">${s.pct} % de ${s.capacidad} · recarga a ${s.aviso}</div>
-   ${pill}${ex.length?`<div class="ex">${ex.join(' · ')}</div>`:''}${av}</div></div>`;
+   ${pill}${ex.length?`<div class="ex">${ex.join(' · ')}</div>`:''}${av}${sinFoto(s)}</div></div>`;
+}
+/* Aviso con cámara si el tanque lleva más de 24 h sin foto */
+function sinFoto(s){
+ const ts=D.lecturas.filter(l=>l.sede===s.sede).map(l=>l.t);const u=Math.max(s.ultimaT||0,...ts);
+ if(!u||Date.now()-u<24*36e5)return '';
+ const h=Math.round((Date.now()-u)/36e5);
+ return `<div class="sinfoto" role="status"><div class="cam" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2"/><path d="M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></svg></div><div><b>Falta la foto de hoy</b><br>La última llegó hace ${h<48?h+' h':Math.round(h/24)+' días'}.</div></div>`;
 }
 function proximaCard(){
  const con=D.sedes.filter(s=>s.nivel!=null);
