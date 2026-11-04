@@ -86,7 +86,6 @@ function configurar() {
       ['Baranoa', 80, 100, 24]
     ]);
   }
-  formato(cfg.getRange('E:E'), '@');
 
   // Tablas (con tipos de columna)
   crearTablas(ss, lec, cfg);
@@ -182,19 +181,23 @@ function crearTablas(ss, lec, cfg) {
     Logger.log('No se pudieron crear las tablas, se usa formato simple: ' + e.message);
     formatoSinTabla(lec); formatoSinTabla(cfg);
   }
-  formato(lec.getRange('B:B'), 'dd/mm/yyyy h:mm am/pm');
-  formato(lec.getRange('A:A'), '@');
-  formato(lec.getRange('N:O'), '@');
   try { lec.hideColumns(14, 2); } catch (e) {}
 }
 
 /** Da formato si se puede; en columnas de tabla con tipo definido, Sheets no lo permite y no hace falta. */
 function formato(rango, patron) {
-  try { rango.setNumberFormat(patron); } catch (e) { /* la tabla ya define el tipo de la columna */ }
+  try { rango.setNumberFormat(patron); SpreadsheetApp.flush(); } catch (e) { /* la tabla ya define el tipo de la columna */ }
 }
 
 function formatoSinTabla(h) {
   h.getRange(1, 1, 1, h.getLastColumn()).setFontWeight('bold').setBackground('#6A1B3A').setFontColor('#FFFFFF');
+  if (h.getName() === HOJA_LEC) {
+    formato(h.getRange('B:B'), 'dd/mm/yyyy h:mm am/pm');
+    formato(h.getRange('A:A'), '@');
+    formato(h.getRange('N:O'), '@');
+  } else {
+    formato(h.getRange('E:E'), '@');
+  }
 }
 
 
@@ -518,7 +521,7 @@ function agregarFila(datos) {
     try {
       const tablaId = idTabla(ss, 'Lecturas');
       const celdas = enc.map(function(n) { return celdaApi(n, datos[n]); });
-      const pedido = { appendCells: { sheetId: h.getSheetId(), rows: [{ values: celdas }], fields: 'userEnteredValue,userEnteredFormat.numberFormat,chipRuns' } };
+      const pedido = { appendCells: { sheetId: h.getSheetId(), rows: [{ values: celdas }], fields: 'userEnteredValue,chipRuns' } };
       if (tablaId) pedido.appendCells.tableId = tablaId;
       Sheets.Spreadsheets.batchUpdate({ requests: [pedido] }, ss.getId());
       return;
@@ -542,8 +545,7 @@ function celdaApi(nombre, v) {
   }
   if (v === '' || v === null || v === undefined) return {};
   if (v instanceof Date) {
-    return { userEnteredValue: { numberValue: serialFecha(v) },
-      userEnteredFormat: { numberFormat: { type: 'DATE_TIME', pattern: 'dd/mm/yyyy h:mm am/pm' } } };
+    return { userEnteredValue: { numberValue: serialFecha(v) } };
   }
   if (typeof v === 'number') return { userEnteredValue: { numberValue: v } };
   return { userEnteredValue: { stringValue: String(v) } };
