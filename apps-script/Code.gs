@@ -53,7 +53,11 @@ const DESCRIPCION_MANOMETRO = {
     '"INCHES OF WATER" (Δp). Números cada 20 y marcas pequeñas cada 2. La aguja principal es BLANCA y larga. ' +
     'Ignora el dial pequeño de la derecha (increase switch / set point), las pestañas amarillas del borde y los reflejos del vidrio.',
   baranoa: 'Indicador de contenido de carátula BEIGE con números negros de 0 a 100 "Inch H2O". ' +
-    'Números cada 20 y marcas cada 2 aproximadamente. La aguja es NEGRA y larga; ignora los tornillos y el contrapeso.'
+    'La escala recorre el anillo exterior en sentido horario: 0 abajo a la izquierda, 20 a la izquierda, 40 arriba a la izquierda, ' +
+    '50 arriba al centro (marca larga sin número), 60 arriba a la derecha, 80 a la derecha y 100 abajo a la derecha. ' +
+    'Marcas largas cada 10 y cortas cada 2. Los NÚMEROS impresos están MÁS ADENTRO que las marcas y la punta de la aguja ' +
+    'no llega al anillo de marcas, así que NO tomes el número que tapa o toca la punta. ' +
+    'La aguja es NEGRA, sale del eje central (sector negro con forma de abanico); ignora los tornillos y los puntos grises.'
 };
 
 
@@ -742,10 +746,12 @@ function leerManometro(blob, sede) {
   const prompt =
     'Eres un técnico que lee manómetros de nivel de tanques criogénicos de oxígeno medicinal.\n' +
     'Tanque de la sede ' + sede.nombre + '. ' + desc + '\n' +
-    'Lee el valor que señala la PUNTA de la aguja principal sobre la escala, con un decimal si se puede. ' +
-    'Interpola entre las marcas. Si la foto está de lado, corrige mentalmente la perspectiva.\n' +
-    'Responde SOLO este JSON: {"es_manometro": true/false, "lectura": número o null, ' +
-    '"confianza": "alta" | "media" | "baja", "motivo": "frase corta en español"}.\n' +
+    'Cómo leer: 1) ubica el eje central de la aguja; 2) prolonga en línea recta la aguja desde el eje, pasando por su punta, ' +
+    'hasta cortar el anillo de MARCAS (no los números); 3) di entre qué dos marcas cae ese corte y cuántas marcas cortas ' +
+    'pasó desde la marca larga anterior; 4) calcula la lectura con un decimal. ' +
+    'Si la foto está de lado, corrige mentalmente la perspectiva.\n' +
+    'Responde SOLO este JSON: {"es_manometro": true/false, "marca_anterior": número, "marca_siguiente": número, ' +
+    '"lectura": número o null, "confianza": "alta" | "media" | "baja", "motivo": "frase corta en español"}.\n' +
     'Usa confianza "baja" si la aguja no se ve clara, hay reflejo sobre ella o no estás seguro de la escala.';
   const cuerpo = {
     contents: [{ parts: [
