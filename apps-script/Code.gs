@@ -28,7 +28,7 @@ const CARPETA_FOTOS = 'Fotos tanques criogénicos';
 const MINUTOS_REVISION = 5;
 const MODELO_POR_DEFECTO = 'gemini-2.5-flash';
 const IA_NO_DISPONIBLE = 'La IA de Google no estuvo disponible';
-const MAX_REINTENTOS = 12; // cada 5 minutos: hasta 1 hora intentando
+const HORAS_REINTENTO = 24; // las fotos pendientes se reintentan hasta 24 h
 
 const ENC_LEC = ['ID', 'Fecha y hora', 'Sede', 'Nivel (pulg)', '% lleno', 'Cambio (pulg)', 'Movimiento',
   'Consumo por día (pulg)', 'Horas desde la anterior', 'Lectura', 'Técnico', 'Foto', 'Nota de la lectura',
@@ -478,8 +478,8 @@ function reintentarPendientes() {
   const pend = leerLecturas().filter(function(l) {
     // También las de antes de este cambio que dijeron "código 503/500/429" (Google ocupado)
     return l.estado === 'Dudosa' && l.fotoId && (l.nota.indexOf(IA_NO_DISPONIBLE) === 0 || /código (503|500|429)/.test(l.nota));
-  }).slice(0, 3);
-  if (!pend.length) return;
+  }).slice(0, 2);
+  if (!pend.length || iaEnPausa()) return;
   const h = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_LEC);
   const enc = h.getRange(1, 1, 1, h.getLastColumn()).getValues()[0].map(function(t) { return String(t).trim(); });
   const poner = function(fila, n, v) { const c = enc.indexOf(n); if (c >= 0) h.getRange(fila, c + 1).setValue(v === null || v === undefined ? '' : v); };
@@ -487,13 +487,11 @@ function reintentarPendientes() {
   pend.forEach(function(l) {
     const sede = sedes.filter(function(x) { return normalizar(x.nombre) === normalizar(l.sede); })[0];
     if (!sede) return;
-    const k = 'REINTENTO_' + l.id;
-    const n = Number(props.getProperty(k) || 0) + 1;
-    props.setProperty(k, String(n));
+    if (iaEnPausa()) return;
     const ia = leerManometro(DriveApp.getFileById(l.fotoId).getBlob(), sede);
-    if (ia.errorIA && n < MAX_REINTENTOS) return; // sigue ocupada: se intenta en la próxima revisión
-    props.deleteProperty(k);
-    const val = ia.errorIA ? { valida: false, motivo: 'La IA de Google no respondió después de varios intentos. Revisa la foto y escribe el nivel a mano.' } : validarLectura(ia, sede);
+    const vencida = Date.now() - l.t > HORAS_REINTENTO * 3600000;
+    if (ia.errorIA && !vencida) return; // sigue sin IA: se intenta en la próxima revisión
+    const val = ia.errorIA ? { valida: false, motivo: 'La IA de Google no respondió en 24 horas. Revisa la foto y escribe el nivel a mano.' } : validarLectura(ia, sede);
     const aguja = val.valida ? Math.round(Number(ia.lectura) * 10) / 10 : null;
     const nivel = aguja === null ? null : Math.min(aguja, sede.capacidad);
     const previas = validasDe(leerLecturas(), sede.nombre, l.t);
@@ -678,27 +676,45 @@ function guardarTema(sede, tema) {
  ***********************/
 
 /** Busca en la lista de modelos de Gemini el "flash" más reciente que pueda leer imágenes. */
-function buscarModelo() {
+/** Modelos "flash" disponibles para esta clave, del más nuevo al más viejo; al final los "flash-lite". */
+function listaModelos() {
   const props = PropertiesService.getScriptProperties();
+  const guardada = props.getProperty('GEMINI_MODELOS');
+  if (guardada) return JSON.parse(guardada);
   const r = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', {
     muteHttpExceptions: true, headers: { 'x-goog-api-key': props.getProperty('GEMINI_KEY') }
   });
   if (r.getResponseCode() !== 200) throw new Error('No se pudo consultar la lista de modelos (código ' + r.getResponseCode() + ').');
-  const lista = (JSON.parse(r.getContentText()).models || []).filter(function(m) {
+  const nombres = (JSON.parse(r.getContentText()).models || []).filter(function(m) {
     const n = m.name.toLowerCase();
     return (m.supportedGenerationMethods || []).indexOf('generateContent') >= 0 && n.indexOf('flash') >= 0 &&
-      !/lite|image|tts|audio|live|preview|exp|thinking|embedding/.test(n);
+      !/image|tts|audio|live|preview|exp|thinking|embedding/.test(n);
   }).map(function(m) { return m.name.replace('models/', ''); });
-  if (!lista.length) throw new Error('No hay un modelo Gemini flash disponible para esta clave.');
+  if (!nombres.length) throw new Error('No hay un modelo Gemini flash disponible para esta clave.');
   const ver = function(n) { const m = n.match(/gemini-(\d+(?:\.\d+)?)/); return m ? Number(m[1]) : 0; };
-  lista.sort(function(a, b) { return ver(b) - ver(a) || a.length - b.length; });
-  props.setProperty('GEMINI_MODELO_AUTO', lista[0]);
-  return lista[0];
+  const orden = function(a, b) { return ver(b) - ver(a) || a.length - b.length; };
+  const lista = nombres.filter(function(n) { return n.indexOf('lite') < 0; }).sort(orden)
+    .concat(nombres.filter(function(n) { return n.indexOf('lite') >= 0; }).sort(orden)).slice(0, 6);
+  props.setProperty('GEMINI_MODELOS', JSON.stringify(lista));
+  return lista;
+}
+
+function buscarModelo() {
+  PropertiesService.getScriptProperties().deleteProperty('GEMINI_MODELOS');
+  const m = listaModelos()[0];
+  PropertiesService.getScriptProperties().setProperty('GEMINI_MODELO_AUTO', m);
+  return m;
+}
+
+/** La IA quedó en pausa por límite de uso: hasta cuándo (ms). */
+function iaEnPausa() {
+  return Number(PropertiesService.getScriptProperties().getProperty('IA_PAUSA_HASTA') || 0) > Date.now();
 }
 
 function leerManometro(blob, sede) {
   const props = PropertiesService.getScriptProperties();
-  let modelo = props.getProperty('GEMINI_MODELO') || props.getProperty('GEMINI_MODELO_AUTO') || MODELO_POR_DEFECTO;
+  let modelo = props.getProperty('GEMINI_MODELO') || props.getProperty('GEMINI_MODELO_AUTO');
+  if (!modelo) { try { modelo = listaModelos()[0]; } catch (e) { modelo = MODELO_POR_DEFECTO; } }
   const desc = DESCRIPCION_MANOMETRO[normalizar(sede.nombre)] ||
     ('Manómetro de nivel con escala de 0 a ' + sede.escala + ' pulgadas de agua.');
   const prompt =
@@ -723,15 +739,31 @@ function leerManometro(blob, sede) {
         headers: { 'x-goog-api-key': props.getProperty('GEMINI_KEY') }
       });
     };
+    if (iaEnPausa()) {
+      return { es_manometro: true, lectura: null, confianza: 'baja', errorIA: true, motivo: IA_NO_DISPONIBLE + ' (límite de uso, en pausa).' };
+    }
     let r = pedir(modelo);
     if (r.getResponseCode() === 404) { // el modelo ya no existe: se busca el vigente y se reintenta
       modelo = buscarModelo();
       r = pedir(modelo);
     }
-    // Google ocupado (429/500/503): esperar y reintentar
-    for (let i = 0; i < 3 && [429, 500, 503].indexOf(r.getResponseCode()) >= 0; i++) {
-      Utilities.sleep(4000 * (i + 1));
+    // Google ocupado (500/503): un solo reintento corto
+    if ([500, 503].indexOf(r.getResponseCode()) >= 0) {
+      Utilities.sleep(5000);
       r = pedir(modelo);
+    }
+    // Límite de uso (429): probar los otros modelos, que tienen su propio cupo gratis
+    if (r.getResponseCode() === 429) {
+      const otros = listaModelos().filter(function(m) { return m !== modelo; });
+      for (let i = 0; i < otros.length && r.getResponseCode() === 429; i++) {
+        const r2 = pedir(otros[i]);
+        if (r2.getResponseCode() === 200) { modelo = otros[i]; props.setProperty('GEMINI_MODELO_AUTO', modelo); }
+        if (r2.getResponseCode() !== 404) r = r2;
+      }
+      if (r.getResponseCode() === 429) {
+        // Todos agotados: pausa de 1 hora para no seguir gastando intentos
+        props.setProperty('IA_PAUSA_HASTA', String(Date.now() + 60 * 60000));
+      }
     }
     if (r.getResponseCode() !== 200) {
       Logger.log('Gemini ' + modelo + ' respondió ' + r.getResponseCode() + ': ' + r.getContentText().slice(0, 500));
@@ -750,9 +782,12 @@ function leerManometro(blob, sede) {
 
 /** Menú: muestra qué modelo de Gemini se está usando (lo busca si hace falta). */
 function probarModelo() {
-  let m;
-  try { m = buscarModelo(); } catch (e) { m = 'Error: ' + e.message; }
-  SpreadsheetApp.getUi().alert('Modelo de Gemini: ' + m);
+  const props = PropertiesService.getScriptProperties();
+  let t;
+  try { t = 'Modelos disponibles (en orden de uso):\n' + listaModelos().join('\n'); } catch (e) { t = 'Error: ' + e.message; }
+  t += '\n\nEn uso ahora: ' + (props.getProperty('GEMINI_MODELO') || props.getProperty('GEMINI_MODELO_AUTO') || MODELO_POR_DEFECTO);
+  if (iaEnPausa()) t += '\n\nIA en pausa por límite de uso hasta las ' + horaAmPm(partesFecha(Number(props.getProperty('IA_PAUSA_HASTA'))).hora, partesFecha(Number(props.getProperty('IA_PAUSA_HASTA'))).min) + '.';
+  SpreadsheetApp.getUi().alert(t);
 }
 
 /** Menú: prueba la IA con la foto más reciente de la carpeta (no guarda nada). */
