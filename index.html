@@ -178,7 +178,11 @@ const $=id=>document.getElementById(id);
 const MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const DIAS=['dom','lun','mar','mié','jue','vie','sáb'];
 const ZONA='America/Bogota';
-const ls={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+/* Todas las apps de geol21.github.io comparten el almacenamiento: cada clave lleva el prefijo de esta app. */
+const PREF='tanques:';
+const ls={get(k,d){try{const v=localStorage.getItem(PREF+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(PREF+k,JSON.stringify(v))}catch(e){}}};
+/* Limpia lo que guardaron versiones anteriores sin prefijo (no se toca "codigo": es de la ronda de cilindros). */
+try{['datos','sede','instCerrado'].forEach(k=>localStorage.removeItem(k));}catch(e){}
 const DEMO=/[?&]demo=1/.test(location.search);
 let D=null,sede=ls.get('sede','Barranquilla'),vista='R',cargando=false;
 
