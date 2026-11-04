@@ -77,6 +77,20 @@ nav button.on{color:var(--vino);box-shadow:inset 0 3px 0 var(--vino)}
 .modal input:focus{border-color:var(--vino);box-shadow:0 0 0 3px rgba(106,27,58,.12)}
 .modal .go{display:block;width:100%;margin-top:10px;padding:13px;border-radius:12px;border:0;background:var(--vino);color:#fff;font-weight:700;font-size:15px}
 .modal .err{color:var(--mal);font-size:13px;margin-top:10px;min-height:18px}
+.oculto{display:none!important}
+.hbtn{margin-left:auto;width:44px;height:44px;flex:none;border:0;border-radius:12px;background:rgba(255,255,255,.15);color:#fff;display:grid;place-items:center}
+.hbtn svg{width:22px;height:22px}
+.inst{background:#FBEEF3;border:1px solid #D9A8BB;border-radius:16px;padding:12px 14px;margin:12px auto 0;max-width:696px}
+.inst .f{display:flex;gap:12px;align-items:center}
+.inst img{width:46px;height:46px;border-radius:12px;flex:none}
+.inst .tx{flex:1;min-width:0;line-height:1.35}
+.inst b{display:block;font-size:15.5px;font-weight:800;color:var(--vino)}
+.inst small{display:block;font-size:13px;color:var(--sec)}
+.inst .x{width:44px;height:44px;flex:none;border:0;background:none;color:var(--sec);border-radius:10px;display:grid;place-items:center}
+.inst .x svg{width:20px;height:20px}
+.inst .go{display:block;width:100%;margin-top:10px;min-height:46px;border:0;border-radius:12px;background:var(--vino);color:#fff;font-weight:700;font-size:15px}
+.inst p{margin:10px 0 0;font-size:13.5px;line-height:1.45;color:var(--txt)}
+nav .ninst{display:none}
 @media (prefers-reduced-motion:reduce){button:active:not(:disabled){transform:none}.barra i{transition:none}}
 
 /* ---------- PC: desde 1024 px ---------- */
@@ -92,11 +106,16 @@ nav button.on{color:var(--vino);box-shadow:inset 0 3px 0 var(--vino)}
  #vResumen .seg,#vResumen .una{display:none}
  #vResumen .sedes2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
  #vLecturas .seg,#vRecargas .seg{max-width:420px}
+ #btnInst,.inst{display:none!important}
+ nav .ninst{display:flex;margin-top:auto;border:1.5px solid var(--vino);color:var(--vino)}
+ nav .ninst.oculto{display:none}
 }
 </style></head><body>
-<header><img src="logo.jpg" alt=""><div><h1>Tanques criogénicos</h1><p id="sub">Clínica Reina Catalina · Barranquilla y Baranoa</p></div></header>
+<header><img src="logo.jpg" alt=""><div><h1>Tanques criogénicos</h1><p id="sub">Clínica Reina Catalina · Barranquilla y Baranoa</p></div><button id="btnInst" class="hbtn oculto" aria-label="Instalar app" onclick="instalar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg></button></header>
 <div class="estado carga" id="est" role="status"><span id="estTxt">Cargando…</span><button id="btnAct" onclick="cargar()">Actualizar</button></div>
 
+<div style="padding:0 12px"><div id="inst" class="inst oculto" role="region" aria-label="Instalar la app"><div class="f"><img src="icon-192.png" alt=""><div class="tx"><b>Instala el tablero</b><small>Ábrelo desde la pantalla de inicio, sin la barra del navegador.</small></div><button class="x" aria-label="Ahora no" onclick="cerrarInst()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg></button></div><button id="instGo" class="go" onclick="instalar()">Instalar</button><p id="instPasos" class="oculto">En Safari toca <b style="display:inline;font-size:inherit;color:inherit">Compartir</b> (el cuadro con la flecha hacia arriba) y luego <b style="display:inline;font-size:inherit;color:inherit">Agregar a inicio</b>.</p></div>
+</div>
 <div id="vResumen" class="wrap">
  <div class="seg" id="segR"></div>
  <div class="una" id="unaR"></div>
@@ -115,6 +134,7 @@ nav button.on{color:var(--vino);box-shadow:inset 0 3px 0 var(--vino)}
  <button id="nR" class="on" onclick="ver('R')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 13m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M13.45 11.55l2.05 -2.05"/><path d="M6.4 20a9 9 0 1 1 11.2 0z"/></svg>Resumen</button>
  <button id="nL" onclick="ver('L')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l11 0"/><path d="M9 12l11 0"/><path d="M9 18l11 0"/><path d="M5 6l0 .01"/><path d="M5 12l0 .01"/><path d="M5 18l0 .01"/></svg>Lecturas</button>
  <button id="nRc" onclick="ver('Rc')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M18 11l-6 -6"/><path d="M6 11l6 -6"/></svg>Recargas</button>
+ <button id="nInst" class="ninst oculto" onclick="instalar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>Instalar app</button>
 </nav>
 
 <div class="modal" id="ingreso"><div class="box"><img src="logo.jpg" alt=""><h3>Tanques criogénicos</h3>
@@ -293,5 +313,26 @@ function demo(){
  else cargar();
  if(DEMO)$('sub').textContent='Demostración con datos de ejemplo';
 })();
+
+/* ---------- Instalar la app ---------- */
+let pedidoInst=null;
+const IOS=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function instalada(){return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}
+function mostrarInst(){
+ const puede=!instalada()&&(pedidoInst||IOS);
+ $('btnInst').classList.toggle('oculto',!puede);
+ $('nInst').classList.toggle('oculto',!pedidoInst||instalada());
+ $('inst').classList.toggle('oculto',!puede||ls.get('instCerrado',false));
+ $('instGo').classList.toggle('oculto',IOS&&!pedidoInst);
+ $('instPasos').classList.toggle('oculto',!(IOS&&!pedidoInst));
+}
+function cerrarInst(){ls.set('instCerrado',true);mostrarInst()}
+async function instalar(){
+ if(pedidoInst){pedidoInst.prompt();try{await pedidoInst.userChoice}catch(e){}pedidoInst=null;mostrarInst();return}
+ if(IOS){ls.set('instCerrado',false);mostrarInst();$('inst').scrollIntoView({behavior:'smooth',block:'center'})}
+}
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();pedidoInst=e;mostrarInst()});
+addEventListener('appinstalled',()=>{pedidoInst=null;mostrarInst()});
+mostrarInst();
 </script>
 </body></html>
