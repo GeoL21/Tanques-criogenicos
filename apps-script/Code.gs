@@ -88,7 +88,7 @@ function configurar() {
       ['Baranoa', 80, 100, 24]
     ]);
   }
-  cfg.getRange('E:E').setNumberFormat('@');
+  formato(cfg.getRange('E:E'), '@');
 
   // Tablas (con tipos de columna)
   crearTablas(ss, lec, cfg);
@@ -181,10 +181,15 @@ function crearTablas(ss, lec, cfg) {
     Logger.log('No se pudieron crear las tablas, se usa formato simple: ' + e.message);
     formatoSinTabla(lec); formatoSinTabla(cfg);
   }
-  lec.getRange('B:B').setNumberFormat('dd/mm/yyyy h:mm am/pm');
-  lec.getRange('A:A').setNumberFormat('@');
-  lec.getRange('N:O').setNumberFormat('@');
+  formato(lec.getRange('B:B'), 'dd/mm/yyyy h:mm am/pm');
+  formato(lec.getRange('A:A'), '@');
+  formato(lec.getRange('N:O'), '@');
   try { lec.hideColumns(14, 2); } catch (e) {}
+}
+
+/** Da formato si se puede; en columnas de tabla con tipo definido, Sheets no lo permite y no hace falta. */
+function formato(rango, patron) {
+  try { rango.setNumberFormat(patron); } catch (e) { /* la tabla ya define el tipo de la columna */ }
 }
 
 function formatoSinTabla(h) {
@@ -631,8 +636,8 @@ function actualizarResumen() {
   if (h.getLastRow() > 1) h.getRange(2, 1, h.getLastRow() - 1, ENC_RES.length).clearContent();
   if (filas.length) {
     h.getRange(2, 1, filas.length, ENC_RES.length).setValues(filas);
-    h.getRange(2, 4, filas.length, 1).setNumberFormat('dd/mm/yyyy h:mm am/pm');
-    h.getRange(2, 7, filas.length, 1).setNumberFormat('dd/mm/yyyy');
+    formato(h.getRange(2, 4, filas.length, 1), 'dd/mm/yyyy h:mm am/pm');
+    formato(h.getRange(2, 7, filas.length, 1), 'dd/mm/yyyy');
   }
 }
 
