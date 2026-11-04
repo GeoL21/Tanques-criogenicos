@@ -1,0 +1,16 @@
+{
+  "name": "Tanques criogénicos - CRC",
+  "short_name": "Tanques",
+  "description": "Nivel, consumo y recargas de los tanques criogénicos de Barranquilla y Baranoa",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FBF8F9",
+  "theme_color": "#6A1B3A",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

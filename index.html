@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tanques criogénicos</title>
+<meta name="theme-color" content="#6A1B3A">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--vino:#6A1B3A;--vino2:#4E1229;--rosa:#F7F1F3;--borde:#DCC8D0;--txt:#26181D;--sec:#6d5a64;--ok:#2E7D5B;--okf:#E4F3EC;--aviso:#C77700;--avisof:#FFF3DC;--mal:#B3261E;--malf:#FCEBEA;--ease-out:cubic-bezier(0.23,1,0.32,1)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:#FBF8F9;color:var(--txt);padding-bottom:84px}
+button{font:inherit;cursor:pointer;transition:transform 150ms var(--ease-out)}
+button:active:not(:disabled){transform:scale(.98)}
+button:focus-visible,a:focus-visible{outline:3px solid #2F6FDB;outline-offset:2px}
+header{background:linear-gradient(160deg,var(--vino),var(--vino2));color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 16px;display:flex;gap:12px;align-items:center}
+header img{height:52px;width:52px;border-radius:50%;background:#fff;padding:2px;flex:none}
+header h1{font-size:18px;margin:0;font-weight:800;line-height:1.2}
+header p{margin:3px 0 0;font-size:12.5px;opacity:.85}
+.estado{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;font-size:13px;font-weight:600;background:var(--okf);color:#22694B;border-bottom:1px solid #C9E6D8;position:sticky;top:0;z-index:5}
+.estado.off{background:var(--avisof);color:#8A5200;border-bottom-color:#F1DDB4}
+.estado.carga{background:var(--rosa);color:var(--vino);border-bottom-color:var(--borde)}
+.estado button{border:0;background:var(--vino);color:#fff;border-radius:10px;min-height:38px;padding:0 14px;font-size:13px;font-weight:700;white-space:nowrap}
+.wrap{padding:12px;max-width:720px;margin:0 auto}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.seg button{min-height:48px;border:1.5px solid var(--borde);border-radius:12px;background:#fff;color:var(--txt);font-size:16px;font-weight:700}
+.seg button.on{background:var(--vino);border-color:var(--vino);color:#fff}
+.cn{display:inline-block;margin-left:6px;font-size:12px;font-weight:700;padding:1px 8px;border-radius:10px;background:rgba(106,27,58,.1)}
+.on .cn{background:rgba(255,255,255,.22)}
+.card{background:#fff;border:1px solid var(--borde);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(106,27,58,.06)}
+.card h2{font-size:15px;margin:0 0 10px;color:var(--vino);font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card h2 small{font-size:12.5px;color:var(--sec);font-weight:600}
+.nivel{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.nivel b{font-size:46px;font-weight:800;line-height:1;color:var(--vino);letter-spacing:-.02em}
+.nivel span{font-size:14px;color:var(--sec);padding-bottom:6px}
+.barra{position:relative;height:14px;border-radius:7px;background:#EFE6EA;margin:12px 0 6px;overflow:visible}
+.barra i{display:block;height:100%;border-radius:7px;background:var(--vino);transition:width 300ms var(--ease-out)}
+.barra .marca{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--aviso)}
+.barra .marca em{position:absolute;top:20px;transform:translateX(-50%);font-style:normal;font-size:11px;font-weight:700;color:#8A5200;white-space:nowrap}
+.msg{font-size:13.5px;font-weight:600;margin-top:20px;display:flex;gap:6px;align-items:flex-start;line-height:1.4}
+.msg.ok{color:#22694B}.msg.av{color:#8A5200}.msg.mal{color:var(--mal)}
+.ks{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ks div{background:var(--rosa);border-radius:12px;padding:10px 12px}
+.ks b{display:block;font-size:19px;font-weight:800}
+.ks small{font-size:12.5px;color:var(--sec)}
+.graf{width:100%;height:auto;display:block}
+.ley{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--sec);margin-top:6px}
+.ley i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.li{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #F1E8EC}
+.li:last-child{border-bottom:0}
+.li .tx{flex:1;min-width:0}
+.li b{display:block;font-size:14px}
+.li small{display:block;font-size:12.5px;color:var(--sec);margin-top:2px;overflow-wrap:anywhere}
+.tag{display:inline-block;font-size:12px;font-weight:700;border-radius:8px;padding:3px 8px;white-space:nowrap}
+.tag.Consumo{background:var(--malf);color:#9B2C1F}.tag.Recarga{background:var(--okf);color:#22694B}
+.tag.mant{background:#F1EFE8;color:#444441}.tag.Dudosa{background:var(--avisof);color:#8A5200}
+.foto{display:inline-flex;align-items:center;gap:5px;border:1.5px solid var(--borde);border-radius:18px;padding:0 12px;min-height:36px;font-size:13px;font-weight:700;color:var(--vino);text-decoration:none;white-space:nowrap}
+.vacio{text-align:center;color:#8a7680;padding:20px 8px;font-size:13.5px;line-height:1.5}
+.sk{height:16px;border-radius:8px;background:#EFE6EA;margin:10px 0}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:12.5px;color:var(--sec);font-weight:700;padding:8px;border-bottom:1.5px solid var(--borde);white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid #F1E8EC;vertical-align:middle}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+.tw{overflow-x:auto}
+nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(3,1fr);background:#fff;border-top:1px solid var(--borde);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav button{border:0;background:none;font-weight:700;font-size:12.5px;padding:8px 6px 10px;color:#7a6670;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav button svg{width:21px;height:21px}
+nav button.on{color:var(--vino);box-shadow:inset 0 3px 0 var(--vino)}
+.sedes2{display:none}
+.modal{position:fixed;inset:0;background:rgba(38,24,29,.7);display:none;align-items:center;justify-content:center;padding:20px;z-index:30}
+.modal .box{background:#fff;border-radius:20px;padding:24px;text-align:center;max-width:360px;width:100%}
+.modal img{width:76px;height:76px;border-radius:50%;margin-bottom:6px}
+.modal h3{margin:0 0 6px;color:var(--vino)}
+.modal p{margin:0 0 6px;font-size:14px;line-height:1.45;color:var(--sec)}
+.modal input{width:100%;font:inherit;font-size:16px;padding:12px;border:1.5px solid var(--borde);border-radius:12px;text-align:center;margin-top:10px;outline:none}
+.modal input:focus{border-color:var(--vino);box-shadow:0 0 0 3px rgba(106,27,58,.12)}
+.modal .go{display:block;width:100%;margin-top:10px;padding:13px;border-radius:12px;border:0;background:var(--vino);color:#fff;font-weight:700;font-size:15px}
+.modal .err{color:var(--mal);font-size:13px;margin-top:10px;min-height:18px}
+@media (prefers-reduced-motion:reduce){button:active:not(:disabled){transform:none}.barra i{transition:none}}
+
+/* ---------- PC: desde 1024 px ---------- */
+@media (min-width:1024px){
+ body{padding-bottom:0;padding-left:220px}
+ header{padding:16px 28px}
+ .estado{padding:9px 28px}
+ nav{top:0;bottom:0;right:auto;width:220px;display:flex;flex-direction:column;gap:4px;border-top:0;border-right:1px solid var(--borde);padding:18px 12px}
+ nav button{flex-direction:row;justify-content:flex-start;gap:12px;font-size:15px;padding:13px 14px;border-radius:12px;color:#5b4650}
+ nav button.on{background:var(--vino);color:#fff;box-shadow:none}
+ nav button:hover:not(.on){background:var(--rosa)}
+ .wrap{max-width:1180px;padding:22px 28px}
+ #vResumen .seg,#vResumen .una{display:none}
+ #vResumen .sedes2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+ #vLecturas .seg,#vRecargas .seg{max-width:420px}
+}
+</style></head><body>
+<header><img src="logo.jpg" alt=""><div><h1>Tanques criogénicos</h1><p id="sub">Clínica Reina Catalina · Barranquilla y Baranoa</p></div></header>
+<div class="estado carga" id="est" role="status"><span id="estTxt">Cargando…</span><button id="btnAct" onclick="cargar()">Actualizar</button></div>
+
+<div id="vResumen" class="wrap">
+ <div class="seg" id="segR"></div>
+ <div class="una" id="unaR"></div>
+ <div class="sedes2" id="dosR"></div>
+</div>
+<div id="vLecturas" class="wrap" style="display:none">
+ <div class="seg" id="segL"></div>
+ <div class="card"><h2>Lecturas<small id="cntL"></small></h2><div id="lstL"></div></div>
+</div>
+<div id="vRecargas" class="wrap" style="display:none">
+ <div class="seg" id="segRc"></div>
+ <div class="card"><h2>Recargas detectadas<small id="cntRc"></small></h2><div id="lstRc"></div></div>
+</div>
+
+<nav>
+ <button id="nR" class="on" onclick="ver('R')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 13m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M13.45 11.55l2.05 -2.05"/><path d="M6.4 20a9 9 0 1 1 11.2 0z"/></svg>Resumen</button>
+ <button id="nL" onclick="ver('L')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l11 0"/><path d="M9 12l11 0"/><path d="M9 18l11 0"/><path d="M5 6l0 .01"/><path d="M5 12l0 .01"/><path d="M5 18l0 .01"/></svg>Lecturas</button>
+ <button id="nRc" onclick="ver('Rc')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M18 11l-6 -6"/><path d="M6 11l6 -6"/></svg>Recargas</button>
+</nav>
+
+<div class="modal" id="ingreso"><div class="box"><img src="logo.jpg" alt=""><h3>Tanques criogénicos</h3>
+ <p>Escribe el código de acceso para ver el tablero.</p>
+ <input id="codigo" autocomplete="off" inputmode="text" aria-label="Código de acceso">
+ <button class="go" onclick="entrar()">Entrar</button><div class="err" id="ingErr" role="alert"></div></div></div>
+
+<script src="config.js"></script>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const DIAS=['dom','lun','mar','mié','jue','vie','sáb'];
+const ZONA='America/Bogota';
+const ls={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const DEMO=/[?&]demo=1/.test(location.search);
+let D=null,sede=ls.get('sede','Barranquilla'),vista='R',cargando=false;
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function num(n,d){if(n==null||isNaN(n))return '—';const f=Math.pow(10,d==null?1:d);return String(Math.round(n*f)/f).replace('.',',');}
+function signo(n){if(n==null||isNaN(n))return '—';const r=Math.round(n*10)/10;return r>0?'+'+num(r):r<0?'−'+num(-r):'0';}
+function partes(ms){const p={};new Intl.DateTimeFormat('en-US',{timeZone:ZONA,year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'numeric',hour12:false,weekday:'short'}).formatToParts(new Date(ms)).forEach(x=>p[x.type]=x.value);
+ return{a:+p.year,m:+p.month,d:+p.day,h:(+p.hour)%24,min:+p.minute,ds:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(p.weekday)};}
+function hora(ms){const p=partes(ms),h12=p.h%12===0?12:p.h%12;return h12+':'+String(p.min).padStart(2,'0')+(p.h<12?' a. m.':' p. m.');}
+function fecha(ms){const p=partes(ms);return p.d+' '+MESES[p.m-1];}
+function fechaHora(ms){return fecha(ms)+', '+hora(ms);}
+function diaLargo(ms){const p=partes(ms),hoy=partes(Date.now()),ay=partes(Date.now()-864e5);
+ if(p.d===hoy.d&&p.m===hoy.m&&p.a===hoy.a)return 'Hoy';if(p.d===ay.d&&p.m===ay.m&&p.a===ay.a)return 'Ayer';return DIAS[p.ds]+' '+p.d+' '+MESES[p.m-1];}
+function hace(ms){const m=Math.round((Date.now()-ms)/6e4);if(m<60)return 'hace '+Math.max(1,m)+' min';const h=Math.round(m/60);if(h<48)return 'hace '+h+' h';return 'hace '+Math.round(h/24)+' días';}
+
+/* ---------- Datos ---------- */
+async function api(accion,extra){
+ if(!window.API_URL||API_URL.indexOf('PEGAR')===0)throw Object.assign(new Error('Falta configurar la dirección del servidor en config.js.'),{cfg:true});
+ const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),30000);
+ try{const r=await fetch(API_URL,{method:'POST',body:JSON.stringify(Object.assign({accion,codigo:ls.get('codigo','')},extra||{})),signal:ctl.signal});
+  const j=await r.json();if(!j.ok){const e=new Error(j.error||'Error del servidor');if(j.codigo==='ACCESO')e.auth=true;throw e;}return j;}
+ catch(e){if(e.name==='AbortError'||e instanceof TypeError){const x=new Error('Sin conexión');x.red=true;throw x;}throw e;}
+ finally{clearTimeout(t);}
+}
+async function cargar(){
+ if(cargando)return;cargando=true;estado('carga','Actualizando…');
+ try{
+  D=DEMO?demo():await api('datos',{dias:60});
+  ls.set('datos',D);estado('ok','En línea · datos de '+hora(D.generado));
+ }catch(e){
+  if(e.auth){pedirCodigo('El código ya no es válido. Escribe el código nuevo.');estado('off','Falta el código de acceso');}
+  else{const g=ls.get('datos',null);if(g){D=g;estado('off',(e.red?'Sin señal':'No se pudo actualizar')+' · datos de '+fechaHora(g.generado));}else estado('off',e.cfg?e.message:(e.red?'Sin señal y sin datos guardados todavía':e.message));}
+ }finally{cargando=false;pintar();}
+}
+function estado(c,t){$('est').className='estado '+(c==='ok'?'':c);$('estTxt').textContent=t;$('btnAct').disabled=c==='carga';}
+function pedirCodigo(m){$('ingErr').textContent=m||'';$('codigo').value='';$('ingreso').style.display='flex';setTimeout(()=>$('codigo').focus(),50);}
+async function entrar(){const c=$('codigo').value.trim();if(!c){$('ingErr').textContent='Escribe el código.';return;}
+ ls.set('codigo',c);$('ingErr').textContent='Verificando…';
+ try{if(!DEMO)await api('validar');$('ingreso').style.display='none';cargar();}
+ catch(e){$('ingErr').textContent=e.auth?'Código incorrecto. Revisa e intenta de nuevo.':(e.red?'Sin conexión. Intenta cuando tengas señal.':e.message);}}
+$('codigo').addEventListener('keydown',e=>{if(e.key==='Enter')entrar();});
+
+/* ---------- Pintar ---------- */
+function ver(v){vista=v;['R','L','Rc'].forEach(x=>{$('v'+({R:'Resumen',L:'Lecturas',Rc:'Recargas'}[x])).style.display=x===v?'block':'none';$('n'+x).classList.toggle('on',x===v);});window.scrollTo(0,0);}
+function elegir(s){sede=s;ls.set('sede',s);pintar();}
+function segHtml(){if(!D)return '';return D.sedes.map(s=>{const n=D.lecturas.filter(l=>l.sede===s.sede).length;return `<button class="${s.sede===sede?'on':''}" aria-pressed="${s.sede===sede}" onclick="elegir('${esc(s.sede)}')">${esc(s.sede)}<span class="cn">${n}</span></button>`;}).join('');}
+function lecturasDe(s){return D.lecturas.filter(l=>l.sede===s).sort((a,b)=>b.t-a.t);}
+function valida(l){return (l.estado==='Automática'||l.estado==='Corregida')&&l.nivel!=null;}
+
+function pintar(){
+ if(!D){const sk='<div class="card"><div class="sk" style="width:40%"></div><div class="sk" style="height:46px;width:55%"></div><div class="sk"></div></div>';
+  $('unaR').innerHTML=sk+sk;$('dosR').innerHTML=sk+sk;$('lstL').innerHTML=$('lstRc').innerHTML='<div class="sk"></div><div class="sk"></div>';return;}
+ if(!D.sedes.some(s=>s.sede===sede))sede=D.sedes[0].sede;
+ ['segR','segL','segRc'].forEach(id=>$(id).innerHTML=segHtml());
+ const s=D.sedes.find(x=>x.sede===sede);
+ $('unaR').innerHTML=tarjetaSede(s,14);
+ $('dosR').innerHTML=D.sedes.map(x=>`<div>${tarjetaSede(x,30)}</div>`).join('');
+ pintarLecturas();pintarRecargas();
+}
+
+function tarjetaSede(s,dias){
+ const L=lecturasDe(s.sede);
+ if(s.nivel==null){return `<div class="card"><h2>Tanque ${esc(s.sede)}</h2><div class="vacio">Aún no hay lecturas de este tanque.<br>Se llenan solas cuando el técnico sube la foto del manómetro al tema <b>Fotos del tanque ${esc(s.sede)}</b> en Telegram.</div></div>`;}
+ const ult=L.find(valida),dud=L.filter(l=>l.estado==='Dudosa'&&l.t>(ult?ult.t:0));
+ const pctAviso=Math.round(s.aviso/s.capacidad*100);
+ let msg;
+ if(s.estado==='Necesita recarga')msg=`<div class="msg mal">⚠ Está en el nivel de recarga o por debajo (${s.aviso} pulg). Necesita recarga.</div>`;
+ else if(s.dias!=null)msg=`<div class="msg ${s.dias<2?'av':'ok'}">Al ritmo promedio llega a ${s.aviso} pulg en ~${num(s.dias)} días.</div>`;
+ else msg=`<div class="msg ok">Aún no hay suficientes lecturas para estimar cuándo necesita recarga.</div>`;
+ if(dud.length)msg+=`<div class="msg av">${dud.length===1?'La última foto no se pudo leer':'Las últimas '+dud.length+' fotos no se pudieron leer'}; se muestra la última lectura buena. Revísala en la hoja.</div>`;
+ const cambio=ult&&ult.cambio!=null?(ult.mov==='Recarga'?'Recarga '+signo(ult.cambio):signo(ult.cambio)):'—';
+ return `<div class="card"><h2>Tanque ${esc(s.sede)}<small>${fechaHora(s.ultimaT)} · ${hace(s.ultimaT)}</small></h2>
+  <div class="nivel"><b>${num(s.nivel)}</b><span>pulg de ${s.capacidad} · ${s.pct} % lleno</span></div>
+  <div class="barra" role="img" aria-label="Nivel ${s.pct} por ciento; nivel de recarga ${s.aviso} pulgadas"><i style="width:${s.pct}%;background:${s.estado==='Necesita recarga'?'var(--mal)':'var(--vino)'}"></i><span class="marca" style="left:${pctAviso}%"><em>Recarga: ${s.aviso}</em></span></div>
+  ${msg}</div>
+ <div class="card"><div class="ks">
+  <div><b>${cambio}</b><small>pulg en la última lectura</small></div>
+  <div><b>${s.prom7!=null?'−'+num(s.prom7):'—'}</b><small>pulg/día · promedio 7 días</small></div>
+  <div><b>${s.recargaT?fecha(s.recargaT):'—'}</b><small>última recarga</small></div>
+  <div><b>${s.recargaCambio!=null?signo(s.recargaCambio):'—'}</b><small>pulg recargadas</small></div>
+ </div></div>
+ <div class="card"><h2>Nivel · últimos ${dias} días</h2>${grafica(s,L,dias)}
+  <div class="ley"><span><i style="background:#B98AA0"></i>Nivel</span><span><i style="background:var(--ok)"></i>Recarga</span><span><i style="background:var(--aviso);height:2px;vertical-align:3px"></i>Nivel de recarga</span></div></div>`;
+}
+
+function grafica(s,L,dias){
+ const desde=Date.now()-dias*864e5,pts=L.filter(l=>valida(l)&&l.t>=desde).sort((a,b)=>a.t-b.t);
+ if(pts.length<2)return '<div class="vacio">La gráfica aparece con al menos dos lecturas.</div>';
+ const W=640,H=200,pl=34,pr=8,pt=10,pb=26,iw=W-pl-pr,ih=H-pt-pb,t0=desde,t1=Date.now();
+ const x=t=>pl+(t-t0)/(t1-t0)*iw,y=v=>pt+ih-Math.min(v,s.capacidad)/s.capacidad*ih;
+ const bw=Math.max(4,Math.min(18,iw/dias*0.6));
+ let g='';
+ [0,.5,1].forEach(f=>{const v=Math.round(s.capacidad*f),yy=y(v);g+=`<line x1="${pl}" x2="${W-pr}" y1="${yy}" y2="${yy}" stroke="#EFE6EA"/><text x="${pl-6}" y="${yy+4}" font-size="11" text-anchor="end" fill="#8a7680">${v}</text>`;});
+ pts.forEach(p=>{const h=Math.max(2,pt+ih-y(p.nivel));g+=`<rect x="${x(p.t)-bw/2}" y="${y(p.nivel)}" width="${bw}" height="${h}" rx="3" fill="${p.mov==='Recarga'?'#2E7D5B':'#B98AA0'}"><title>${fechaHora(p.t)}: ${num(p.nivel)} pulg</title></rect>`;});
+ const ya=y(s.aviso);g+=`<line x1="${pl}" x2="${W-pr}" y1="${ya}" y2="${ya}" stroke="#C77700" stroke-width="2" stroke-dasharray="6 4"/>`;
+ const marcas=dias<=14?[0,Math.round(dias/2),dias]:[0,10,20,30];
+ marcas.forEach(d=>{const t=t1-(dias-d)*864e5;g+=`<text x="${Math.min(W-pr-20,Math.max(pl,x(t)))}" y="${H-6}" font-size="11" fill="#8a7680" text-anchor="${d===0?'start':d===dias?'end':'middle'}">${d===dias?'hoy':fecha(t)}</text>`;});
+ return `<svg class="graf" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfica del nivel del tanque ${esc(s.sede)}">${g}</svg>`;
+}
+
+function etiqueta(l){if(l.estado==='Dudosa')return '<span class="tag Dudosa">Dudosa</span>';
+ const c=l.mov==='Consumo'?'Consumo':l.mov==='Recarga'?'Recarga':'mant';return `<span class="tag ${c}">${esc(l.mov||'—')}</span>`;}
+function linkFoto(l){return l.foto?`<a class="foto" href="${esc(l.foto)}" target="_blank" rel="noopener">Foto</a>`:'';}
+
+function pintarLecturas(){
+ const L=lecturasDe(sede);$('cntL').textContent=L.length+' en 60 días';
+ if(!L.length){$('lstL').innerHTML='<div class="vacio">Aún no hay lecturas de '+esc(sede)+'.</div>';return;}
+ if(window.matchMedia('(min-width:1024px)').matches){
+  $('lstL').innerHTML=`<div class="tw"><table><thead><tr><th>Fecha y hora</th><th>Nivel (pulg)</th><th>% lleno</th><th>Cambio</th><th>Movimiento</th><th>Consumo por día</th><th>Técnico</th><th>Nota</th><th>Foto</th></tr></thead><tbody>`+
+  L.map(l=>`<tr><td>${diaLargo(l.t)}, ${hora(l.t)}</td><td class="n">${l.estado==='Dudosa'?'—':num(l.nivel)}</td><td class="n">${l.pct!=null&&l.estado!=='Dudosa'?l.pct+' %':'—'}</td><td class="n">${l.estado==='Dudosa'?'—':signo(l.cambio)}</td><td>${etiqueta(l)}</td><td class="n">${l.porDia!=null?signo(l.porDia):'—'}</td><td>${esc(l.tecnico)}</td><td style="max-width:260px;font-size:12.5px;color:var(--sec)">${esc(l.nota)}</td><td>${linkFoto(l)}</td></tr>`).join('')+'</tbody></table></div>';
+  return;}
+ let dia='',h='';
+ L.forEach(l=>{const d=diaLargo(l.t);if(d!==dia){dia=d;h+=`<div style="font-size:12.5px;font-weight:700;color:var(--sec);margin:12px 0 2px">${d}</div>`;}
+  const linea=l.estado==='Dudosa'?esc(l.nota||'No se pudo leer la foto'):`${num(l.nivel)} pulg (${l.pct} %) · cambio ${signo(l.cambio)}`;
+  h+=`<div class="li"><div class="tx"><b>${hora(l.t)} · ${etiqueta(l)}</b><small>${linea}</small><small>Subió: ${esc(l.tecnico||'—')}</small></div>${linkFoto(l)}</div>`;});
+ $('lstL').innerHTML=h;
+}
+
+function pintarRecargas(){
+ const R=lecturasDe(sede).filter(l=>valida(l)&&l.mov==='Recarga');$('cntRc').textContent=R.length+' en 60 días';
+ if(!R.length){$('lstRc').innerHTML='<div class="vacio">No se han detectado recargas de '+esc(sede)+' en los últimos 60 días.</div>';return;}
+ $('lstRc').innerHTML=R.map(l=>`<div class="li"><div class="tx"><b>${diaLargo(l.t)}, ${hora(l.t)}</b><small>${num(l.nivel-l.cambio)} → ${num(l.nivel)} pulg · <b style="display:inline;color:#22694B">${signo(l.cambio)} pulg</b></small></div>${linkFoto(l)}</div>`).join('');
+}
+addEventListener('resize',()=>{if(D)pintarLecturas();});
+
+/* ---------- Demostración (?demo=1) ---------- */
+function demo(){
+ const ahora=Date.now(),H=36e5,D=864e5,lec=[];
+ function serie(sede,cap,aviso,niveles,horaBase){let prev=null;niveles.forEach((n,i)=>{const t=ahora-(niveles.length-1-i)*D-((partes(ahora).h-horaBase)*H);
+  if(n===null){lec.push({t,sede,nivel:null,pct:null,cambio:null,mov:'Sin lectura',porDia:null,estado:'Dudosa',tecnico:'Kevin',nota:'Hay un reflejo sobre la aguja.',foto:'#'});return;}
+  const c=prev==null?null:n-prev,mov=c==null?'Primera lectura':c>=3?'Recarga':Math.abs(c)<=1?'Se mantuvo':c<0?'Consumo':'Se mantuvo';
+  lec.push({t,sede,nivel:n,pct:Math.min(100,Math.round(n/cap*100)),cambio:c,mov,porDia:mov==='Recarga'?null:c,estado:'Automática',tecnico:sede==='Baranoa'?'Kevin':'Pastor Aleman',nota:'',foto:'#'});prev=n;});}
+ serie('Barranquilla',136,40,[110,104,98,93,88,82,76,71,66,60,58,58,136,131,125,120,114,109],8);
+ serie('Baranoa',80,24,[60,49,38,27,74,63,52,41,30,76,66,60,null,58,38],8);
+ function res(s,cap,aviso){const v=lec.filter(l=>l.sede===s&&l.estado!=='Dudosa').sort((a,b)=>a.t-b.t),u=v[v.length-1],r=v.filter(l=>l.mov==='Recarga').pop();
+  const c7=v.filter(l=>l.t>ahora-7*D&&l.mov!=='Recarga'&&l.cambio!=null),p7=c7.length?-c7.reduce((a,l)=>a+Math.min(0,l.cambio),0)/7:null;
+  const dias=p7&&u.nivel>aviso?(u.nivel-aviso)/p7:null;
+  return{sede:s,capacidad:cap,escala:s==='Baranoa'?100:200,aviso,nivel:u.nivel,pct:u.pct,ultimaT:u.t,prom7:p7,prom30:p7,recargaT:r?r.t:null,recargaCambio:r?r.cambio:null,dias,estado:u.nivel<=aviso?'Necesita recarga':dias!=null&&dias<2?'Recarga pronto':'Normal'};}
+ return{ok:true,generado:ahora,sedes:[res('Barranquilla',136,40),res('Baranoa',80,24)],lecturas:lec};
+}
+
+/* ---------- Arranque ---------- */
+(function(){
+ if('serviceWorker' in navigator&&!DEMO)navigator.serviceWorker.register('sw.js').catch(()=>{});
+ const g=ls.get('datos',null);if(g&&!DEMO){D=g;}
+ pintar();
+ if(!DEMO&&!ls.get('codigo','')){pedirCodigo();estado('off','Falta el código de acceso');}
+ else cargar();
+ if(DEMO)$('sub').textContent='Demostración con datos de ejemplo';
+})();
+</script>
+</body></html>
