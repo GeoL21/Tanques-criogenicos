@@ -41,6 +41,14 @@ Subir una foto al tema de cada sede. En máximo 5 minutos el bot responde debajo
 
 Si el bot responde que no sabe de qué tanque es el tema, escribir en ese tema `/sede Barranquilla` o `/sede Baranoa`.
 
+## Recargas y número de remisión
+
+- Cuando el bot detecta una recarga (el nivel sube 3 pulg o más), lo dice en el reporte y pide: *"Responde a este mensaje con el número de remisión de Messer"*.
+- Un **técnico** (quien haya subido alguna foto del tanque) toca **Responder** sobre ese mensaje y escribe el número. El bot lo guarda en la pestaña **Recargas** y confirma.
+- Si se equivocó, responde otra vez al mensaje de la recarga con el número correcto.
+- Mientras falte la remisión, el bot lo recuerda **a las 7:00 a. m.** en el tema de esa sede.
+- En **Recargas** se pueden agregar columnas propias (precio, factura, pago): el bot solo escribe en las suyas.
+
 ## Uso diario
 
 - `/estado` en un tema: el bot responde con el estado de ese tanque.

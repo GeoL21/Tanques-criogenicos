@@ -199,6 +199,8 @@ function tarjetaSede(s,dias){
  if(s.estado==='Necesita recarga')msg=`<div class="msg mal">⚠ Está en el nivel de recarga o por debajo (${s.aviso} pulg). Necesita recarga.</div>`;
  else if(s.dias!=null)msg=`<div class="msg ${s.dias<2?'av':'ok'}">Al ritmo promedio llega a ${s.aviso} pulg en ~${num(s.dias)} días.</div>`;
  else msg=`<div class="msg ok">Aún no hay suficientes lecturas para estimar cuándo necesita recarga.</div>`;
+ const sinRem=(D.recargas||[]).filter(r=>r.sede===s.sede&&r.estado==='Falta remisión').length;
+ if(sinRem)msg+=`<div class="msg av">${sinRem===1?'Una recarga no tiene':'Hay '+sinRem+' recargas sin'} número de remisión. Ver en Recargas.</div>`;
  if(dud.length)msg+=`<div class="msg av">${dud.length===1?'La última foto no se pudo leer':'Las últimas '+dud.length+' fotos no se pudieron leer'}; se muestra la última lectura buena. Revísala en la hoja.</div>`;
  const cambio=ult&&ult.cambio!=null?(ult.mov==='Recarga'?'Recarga '+signo(ult.cambio):signo(ult.cambio)):'—';
  return `<div class="card"><h2>Tanque ${esc(s.sede)}<small>${fechaHora(s.ultimaT)} · ${hace(s.ultimaT)}</small></h2>
@@ -248,12 +250,22 @@ function pintarLecturas(){
  $('lstL').innerHTML=h;
 }
 
-function pintarRecargas(){
- const R=lecturasDe(sede).filter(l=>valida(l)&&l.mov==='Recarga');$('cntRc').textContent=R.length+' en 60 días';
- if(!R.length){$('lstRc').innerHTML='<div class="vacio">No se han detectado recargas de '+esc(sede)+' en los últimos 60 días.</div>';return;}
- $('lstRc').innerHTML=R.map(l=>`<div class="li"><div class="tx"><b>${diaLargo(l.t)}, ${hora(l.t)}</b><small>${num(l.nivel-l.cambio)} → ${num(l.nivel)} pulg · <b style="display:inline;color:#22694B">${signo(l.cambio)} pulg</b></small></div>${linkFoto(l)}</div>`).join('');
+function recargasDe(s){
+ if(D.recargas)return D.recargas.filter(r=>r.sede===s).sort((a,b)=>b.t-a.t);
+ return lecturasDe(s).filter(l=>valida(l)&&l.mov==='Recarga').map(l=>({t:l.t,sede:l.sede,inicial:l.nivel-l.cambio,final:l.nivel,cambio:l.cambio,remision:'',estado:'',registro:''}));
 }
-addEventListener('resize',()=>{if(D)pintarLecturas();});
+function pintarRecargas(){
+ const R=recargasDe(sede),falta=R.filter(r=>r.estado==='Falta remisión').length;
+ $('cntRc').textContent=R.length+' en 60 días'+(falta?' · '+falta+' sin remisión':'');
+ if(!R.length){$('lstRc').innerHTML='<div class="vacio">No se han detectado recargas de '+esc(sede)+' en los últimos 60 días.</div>';return;}
+ const est=r=>r.estado==='Falta remisión'?'<span class="tag Dudosa">Falta remisión</span>':r.estado==='Completa'?'<span class="tag Recarga">Completa</span>':'';
+ if(window.matchMedia('(min-width:1024px)').matches){
+  $('lstRc').innerHTML=`<div class="tw"><table><thead><tr><th>Fecha y hora</th><th>Inicial</th><th>Final</th><th>Recargado</th><th>N.º remisión</th><th>Estado</th><th>Registró</th></tr></thead><tbody>`+
+  R.map(r=>`<tr><td>${diaLargo(r.t)}, ${hora(r.t)}</td><td class="n">${num(r.inicial)}</td><td class="n">${num(r.final)}</td><td class="n">${signo(r.cambio)}</td><td>${r.remision?'<b>'+esc(r.remision)+'</b>':'—'}</td><td>${est(r)}</td><td>${esc(r.registro||'—')}</td></tr>`).join('')+'</tbody></table></div>';
+  return;}
+ $('lstRc').innerHTML=R.map(r=>`<div class="li"><div class="tx"><b>${diaLargo(r.t)}, ${hora(r.t)} ${est(r)}</b><small>${num(r.inicial)} → ${num(r.final)} pulg · <b style="display:inline;color:#22694B">${signo(r.cambio)} pulg</b></small><small>${r.remision?'Remisión <b style="display:inline">'+esc(r.remision)+'</b> · registró '+esc(r.registro||'—'):'Falta que un técnico responda en Telegram con el número de remisión.'}</small></div></div>`).join('');
+}
+addEventListener('resize',()=>{if(D){pintarLecturas();pintarRecargas();}});
 
 /* ---------- Demostración (?demo=1) ---------- */
 function demo(){
@@ -268,7 +280,8 @@ function demo(){
   const c7=v.filter(l=>l.t>ahora-7*D&&l.mov!=='Recarga'&&l.cambio!=null),p7=c7.length?-c7.reduce((a,l)=>a+Math.min(0,l.cambio),0)/7:null;
   const dias=p7&&u.nivel>aviso?(u.nivel-aviso)/p7:null;
   return{sede:s,capacidad:cap,escala:s==='Baranoa'?100:200,aviso,nivel:u.nivel,pct:u.pct,ultimaT:u.t,prom7:p7,prom30:p7,recargaT:r?r.t:null,recargaCambio:r?r.cambio:null,dias,estado:u.nivel<=aviso?'Necesita recarga':dias!=null&&dias<2?'Recarga pronto':'Normal'};}
- return{ok:true,generado:ahora,sedes:[res('Barranquilla',136,40),res('Baranoa',80,24)],lecturas:lec};
+ const recargas=lec.filter(l=>l.mov==='Recarga').map((l,i)=>({t:l.t,sede:l.sede,inicial:l.nivel-l.cambio,final:l.nivel,cambio:l.cambio,remision:i%3===2?'':String(995292+i*37),estado:i%3===2?'Falta remisión':'Completa',registro:i%3===2?'':(l.sede==='Baranoa'?'Kevin':'Pastor Aleman')}));
+ return{ok:true,generado:ahora,sedes:[res('Barranquilla',136,40),res('Baranoa',80,24)],lecturas:lec,recargas};
 }
 
 /* ---------- Arranque ---------- */
