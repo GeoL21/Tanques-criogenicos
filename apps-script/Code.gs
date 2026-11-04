@@ -101,6 +101,7 @@ function configurar() {
 
   // Tablas (con tipos de columna)
   crearTablas(ss, lec, cfg, rec);
+  fechasEnEspanol(ss);
 
   // Formato del resumen (sin tabla)
   try { res.getRange(1, 1, 1, ENC_RES.length).setFontWeight('bold').setBackground('#6A1B3A').setFontColor('#FFFFFF'); } catch (e) {}
@@ -215,6 +216,27 @@ function crearTablas(ss, lec, cfg, rec) {
   }
   try { lec.hideColumns(14, 2); } catch (e) {}
   try { rec.hideColumns(11, 2); } catch (e) {}
+}
+
+/** Muestra las fechas de las tablas como día/mes/año y hora con a. m./p. m. */
+function fechasEnEspanol(ss) {
+  try {
+    const info = Sheets.Spreadsheets.get(ss.getId(), { fields: 'sheets(tables(tableId,name,columnProperties))' });
+    const pedidos = [];
+    info.sheets.forEach(function(h) {
+      (h.tables || []).forEach(function(t) {
+        let cambia = false;
+        const cols = (t.columnProperties || []).map(function(c) {
+          if (c.columnType === 'DATE_TIME') { c.columnFormat = { type: 'DATE_TIME', pattern: 'dd/mm/yyyy h:mm am/pm' }; cambia = true; }
+          return c;
+        });
+        if (cambia) pedidos.push({ updateTable: { table: { tableId: t.tableId, columnProperties: cols }, fields: 'columnProperties' } });
+      });
+    });
+    if (pedidos.length) Sheets.Spreadsheets.batchUpdate({ requests: pedidos }, ss.getId());
+  } catch (e) {
+    Logger.log('No se pudo cambiar el formato de fecha de las tablas: ' + e.message);
+  }
 }
 
 /** Da formato si se puede; en columnas de tabla con tipo definido, Sheets no lo permite y no hace falta. */
