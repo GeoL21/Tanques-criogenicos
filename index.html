@@ -91,7 +91,36 @@ nav button.on{color:var(--vino);box-shadow:inset 0 3px 0 var(--vino)}
 .inst .go{display:block;width:100%;margin-top:10px;min-height:46px;border:0;border-radius:12px;background:var(--vino);color:#fff;font-weight:700;font-size:15px}
 .inst p{margin:10px 0 0;font-size:13.5px;line-height:1.45;color:var(--txt)}
 nav .ninst{display:none}
-@media (prefers-reduced-motion:reduce){button:active:not(:disabled){transform:none}.barra i{transition:none}}
+.top{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.top>.card{margin:0}
+.top .tc{grid-column:1/-1;display:flex;gap:16px;align-items:center}
+.tq{width:46px;height:100px;border:3px solid var(--vino);border-radius:18px 18px 9px 9px;position:relative;overflow:hidden;background:var(--rosa);flex:none}
+.tq i{position:absolute;left:0;right:0;bottom:0;height:0;transition:height 500ms var(--ease-out)}
+.tq s{position:absolute;left:-3px;right:-3px;border-top:2.5px dashed #fff;box-shadow:0 -1px 0 rgba(38,24,29,.75),0 1px 0 rgba(38,24,29,.75)}
+.tc .tx{flex:1;min-width:0}
+.tc .sd{font-size:13px;font-weight:700;color:var(--sec);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.tc .sd small{font-weight:600;font-size:12px}
+.tc .nv{font-size:44px;font-weight:800;color:var(--vino);line-height:1;letter-spacing:-.02em;margin-top:4px}
+.tc .nv span{font-size:14px;font-weight:600;color:var(--sec);letter-spacing:0}
+.tc .pc{font-size:13px;color:var(--sec);margin-top:2px}
+.pill{display:inline-block;margin-top:8px;font-size:13px;font-weight:700;border-radius:12px;padding:4px 10px}
+.pill.ok{background:var(--okf);color:#22694B}.pill.av{background:var(--avisof);color:#8A5200}.pill.mal{background:var(--malf);color:#9B2C1F}.pill.nd{background:#F1EFE8;color:#5a5650}
+.tc .ex{font-size:12.5px;color:var(--sec);margin-top:6px;line-height:1.45}
+.tc .ex.av{color:#8A5200;font-weight:600}
+.kp .k{font-size:12.5px;color:var(--sec);font-weight:600}
+.kp b{display:block;font-size:20px;font-weight:800;margin-top:6px;line-height:1.15}
+.kp small{display:block;font-size:12.5px;color:var(--sec);margin-top:3px;line-height:1.35}
+.kp.link{cursor:pointer}
+.mid{display:grid;gap:10px}
+.mid>.card{margin:0}
+.ul{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #F1E8EC}
+.ul:last-child{border-bottom:0}
+.ul .tx{flex:1;min-width:0}
+.ul b{display:block;font-size:14px}
+.ul small{display:block;font-size:12.5px;color:var(--sec);margin-top:2px}
+.ul .v{font-size:18px;font-weight:800;color:var(--vino);font-variant-numeric:tabular-nums}
+@media (min-width:700px){.top{grid-template-columns:1fr 1fr}.top .tc{grid-column:auto}}
+@media (prefers-reduced-motion:reduce){button:active:not(:disabled){transform:none}.barra i,.tq i{transition:none}}
 
 /* ---------- PC: desde 1024 px ---------- */
 @media (min-width:1024px){
@@ -103,8 +132,9 @@ nav .ninst{display:none}
  nav button.on{background:var(--vino);color:#fff;box-shadow:none}
  nav button:hover:not(.on){background:var(--rosa)}
  .wrap{max-width:1180px;padding:22px 28px}
- #vResumen .seg,#vResumen .una{display:none}
- #vResumen .sedes2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+ #vResumen{max-width:1440px}
+ .top{grid-template-columns:1.35fr 1.35fr 1fr 1fr;gap:14px;margin-bottom:14px}
+ .mid{grid-template-columns:3fr 2fr;gap:14px;align-items:start}
  #vLecturas .seg,#vRecargas .seg{max-width:420px}
  #btnInst,.inst{display:none!important}
  nav .ninst{display:flex;margin-top:auto;border:1.5px solid var(--vino);color:var(--vino)}
@@ -117,9 +147,8 @@ nav .ninst{display:none}
 <div style="padding:0 12px"><div id="inst" class="inst oculto" role="region" aria-label="Instalar la app"><div class="f"><img src="icon-192.png" alt=""><div class="tx"><b>Instala el tablero</b><small>Ábrelo desde la pantalla de inicio, sin la barra del navegador.</small></div><button class="x" aria-label="Ahora no" onclick="cerrarInst()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg></button></div><button id="instGo" class="go" onclick="instalar()">Instalar</button><p id="instPasos" class="oculto">En Safari toca <b style="display:inline;font-size:inherit;color:inherit">Compartir</b> (el cuadro con la flecha hacia arriba) y luego <b style="display:inline;font-size:inherit;color:inherit">Agregar a inicio</b>.</p></div>
 </div>
 <div id="vResumen" class="wrap">
- <div class="seg" id="segR"></div>
- <div class="una" id="unaR"></div>
- <div class="sedes2" id="dosR"></div>
+ <div class="top" id="topR"></div>
+ <div class="mid"><div class="card" id="grafR"></div><div class="card" id="ultR"></div></div>
 </div>
 <div id="vLecturas" class="wrap" style="display:none">
  <div class="seg" id="segL"></div>
@@ -199,57 +228,93 @@ function segHtml(){if(!D)return '';return D.sedes.map(s=>{const n=D.lecturas.fil
 function lecturasDe(s){return D.lecturas.filter(l=>l.sede===s).sort((a,b)=>b.t-a.t);}
 function valida(l){return (l.estado==='Automática'||l.estado==='Corregida')&&l.nivel!=null;}
 
+let animado=false;
 function pintar(){
  if(!D){const sk='<div class="card"><div class="sk" style="width:40%"></div><div class="sk" style="height:46px;width:55%"></div><div class="sk"></div></div>';
-  $('unaR').innerHTML=sk+sk;$('dosR').innerHTML=sk+sk;$('lstL').innerHTML=$('lstRc').innerHTML='<div class="sk"></div><div class="sk"></div>';return;}
+  $('topR').innerHTML=sk+sk;$('grafR').innerHTML=$('ultR').innerHTML='<div class="sk"></div><div class="sk"></div>';$('lstL').innerHTML=$('lstRc').innerHTML='<div class="sk"></div><div class="sk"></div>';return;}
  if(!D.sedes.some(s=>s.sede===sede))sede=D.sedes[0].sede;
- ['segR','segL','segRc'].forEach(id=>$(id).innerHTML=segHtml());
- const s=D.sedes.find(x=>x.sede===sede);
- $('unaR').innerHTML=tarjetaSede(s,14);
- $('dosR').innerHTML=D.sedes.map(x=>`<div>${tarjetaSede(x,30)}</div>`).join('');
+ ['segL','segRc'].forEach(id=>$(id).innerHTML=segHtml());
+ $('topR').innerHTML=D.sedes.map(tanqueCard).join('')+proximaCard()+remisionesCard();
+ $('grafR').innerHTML=graficaDoble(30);
+ $('ultR').innerHTML=ultimasLecturas();
+ const fill=()=>document.querySelectorAll('.tq i').forEach(i=>i.style.height=i.dataset.h+'%');
+ if(animado)fill();else{animado=true;requestAnimationFrame(()=>requestAnimationFrame(fill));}
  pintarLecturas();pintarRecargas();
 }
 
-function tarjetaSede(s,dias){
+const COLOR={ok:'#2E7D5B',av:'#C77700',mal:'#B3261E'};
+/* Bien / Pronto / Recargar */
+function semaforo(s){
+ if(s.nivel==null)return 'nd';
+ if(s.nivel<=s.aviso)return 'mal';
+ if(s.dias!=null)return s.dias<=7?'av':'ok';
+ return s.nivel<=s.aviso+(s.capacidad-s.aviso)*0.25?'av':'ok';
+}
+function tanqueCard(s){
  const L=lecturasDe(s.sede);
- if(s.nivel==null){return `<div class="card"><h2>Tanque ${esc(s.sede)}</h2><div class="vacio">Aún no hay lecturas de este tanque.<br>Se llenan solas cuando el técnico sube la foto del manómetro al tema <b>Fotos del tanque ${esc(s.sede)}</b> en Telegram.</div></div>`;}
- const ult=L.find(valida),dud=L.filter(l=>l.estado==='Dudosa'&&l.t>(ult?ult.t:0));
- const pctAviso=Math.round(s.aviso/s.capacidad*100);
- let msg;
- if(s.estado==='Necesita recarga')msg=`<div class="msg mal">⚠ Está en el nivel de recarga o por debajo (${s.aviso} pulg). Necesita recarga.</div>`;
- else if(s.dias!=null)msg=`<div class="msg ${s.dias<2?'av':'ok'}">Al ritmo promedio llega a ${s.aviso} pulg en ~${num(s.dias)} días.</div>`;
- else msg=`<div class="msg ok">Aún no hay suficientes lecturas para estimar cuándo necesita recarga.</div>`;
- const sinRem=(D.recargas||[]).filter(r=>r.sede===s.sede&&r.estado==='Falta remisión').length;
- if(sinRem)msg+=`<div class="msg av">${sinRem===1?'Una recarga no tiene':'Hay '+sinRem+' recargas sin'} número de remisión. Ver en Recargas.</div>`;
- if(dud.length)msg+=`<div class="msg av">${dud.length===1?'La última foto no se pudo leer':'Las últimas '+dud.length+' fotos no se pudieron leer'}; se muestra la última lectura buena. Revísala en la hoja.</div>`;
- const cambio=ult&&ult.cambio!=null?(ult.mov==='Recarga'?'Recarga '+signo(ult.cambio):signo(ult.cambio)):'—';
- return `<div class="card"><h2>Tanque ${esc(s.sede)}<small>${fechaHora(s.ultimaT)} · ${hace(s.ultimaT)}</small></h2>
-  <div class="nivel"><b>${num(s.nivel)}</b><span>pulg de ${s.capacidad} · ${s.pct} % lleno</span></div>
-  <div class="barra" role="img" aria-label="Nivel ${s.pct} por ciento; nivel de recarga ${s.aviso} pulgadas"><i style="width:${s.pct}%;background:${s.estado==='Necesita recarga'?'var(--mal)':'var(--vino)'}"></i><span class="marca" style="left:${pctAviso}%"><em>Recarga: ${s.aviso}</em></span></div>
-  ${msg}</div>
- <div class="card"><div class="ks">
-  <div><b>${cambio}</b><small>pulg en la última lectura</small></div>
-  <div><b>${s.prom7!=null?'−'+num(s.prom7):'—'}</b><small>pulg/día · promedio 7 días</small></div>
-  <div><b>${s.recargaT?fecha(s.recargaT):'—'}</b><small>última recarga</small></div>
-  <div><b>${s.recargaCambio!=null?signo(s.recargaCambio):'—'}</b><small>pulg recargadas</small></div>
- </div></div>
- <div class="card"><h2>Nivel · últimos ${dias} días</h2>${grafica(s,L,dias)}
-  <div class="ley"><span><i style="background:#B98AA0"></i>Nivel</span><span><i style="background:var(--ok)"></i>Recarga</span><span><i style="background:var(--aviso);height:2px;vertical-align:3px"></i>Nivel de recarga</span></div></div>`;
+ if(s.nivel==null)return `<div class="card tc"><div class="tq" aria-hidden="true"></div><div class="tx"><div class="sd">${esc(s.sede)}</div><div class="ex">Aún no hay lecturas. Se llenan solas cuando el técnico sube la foto del manómetro al tema <b>Fotos del tanque ${esc(s.sede)}</b> en Telegram.</div></div></div>`;
+ const c=semaforo(s),buenas=L.filter(valida),ult=buenas[0],dud=L.filter(l=>l.estado==='Dudosa'&&l.t>(ult?ult.t:0));
+ const pctAviso=Math.min(100,s.aviso/s.capacidad*100);
+ let pill;
+ if(c==='mal')pill='<span class="pill mal">Necesita recarga</span>';
+ else if(s.dias!=null)pill=`<span class="pill ${c}">~${num(s.dias,0)} días para recargar</span>`;
+ else if(buenas.length<2)pill='<span class="pill nd">Con la próxima foto aparece el consumo</span>';
+ else pill='<span class="pill nd">Los días para recargar salen con unas 12 h de lecturas</span>';
+ const ex=[];
+ if(s.prom7!=null)ex.push('Consumo −'+num(s.prom7)+' pulg/día');
+ else if(ult&&ult.cambio!=null&&ult.mov!=='Recarga')ex.push('Última lectura '+signo(ult.cambio)+' pulg');
+ if(s.recargaT)ex.push('última recarga '+fecha(s.recargaT)+' ('+signo(s.recargaCambio)+')');
+ let av='';
+ if(dud.length)av=`<div class="ex av">${dud.length===1?'La última foto no se pudo leer':'Las últimas '+dud.length+' fotos no se pudieron leer'}; se muestra la última lectura buena.</div>`;
+ const nombre={ok:'bien',av:'pronto',mal:'necesita recarga',nd:''}[c];
+ return `<div class="card tc">
+  <div class="tq" role="img" aria-label="Tanque al ${s.pct} por ciento, ${nombre}; nivel de recarga ${s.aviso} pulgadas"><i data-h="${s.pct}" style="background:${COLOR[c]||'#B98AA0'}${animado?';height:'+s.pct+'%':''}"></i><s style="bottom:${pctAviso}%"></s></div>
+  <div class="tx"><div class="sd">${esc(s.sede)}<small>${fechaHora(s.ultimaT)} · ${hace(s.ultimaT)}</small></div>
+   <div class="nv">${num(s.nivel)} <span>pulg</span></div>
+   <div class="pc">${s.pct} % de ${s.capacidad} · recarga a ${s.aviso}</div>
+   ${pill}${ex.length?`<div class="ex">${ex.join(' · ')}</div>`:''}${av}</div></div>`;
+}
+function proximaCard(){
+ const con=D.sedes.filter(s=>s.nivel!=null);
+ const ya=con.filter(s=>s.nivel<=s.aviso);
+ if(ya.length)return `<div class="card kp"><div class="k">Próxima recarga</div><b style="color:var(--mal)">${ya.map(s=>esc(s.sede)).join(' y ')}</b><small>ya está en el nivel de recarga</small></div>`;
+ const cd=con.filter(s=>s.dias!=null).sort((a,b)=>a.dias-b.dias)[0];
+ if(cd){const t=Date.now()+cd.dias*864e5;return `<div class="card kp"><div class="k">Próxima recarga</div><b style="color:${cd.dias<=7?'#8A5200':'#22694B'}">${esc(cd.sede)}</b><small>llega a ${cd.aviso} pulg ~${fecha(t)}</small></div>`;}
+ return `<div class="card kp"><div class="k">Próxima recarga</div><b style="color:var(--sec);font-size:16px">Aún sin calcular</b><small>Se calcula con unas 12 h de lecturas de cada tanque.</small></div>`;
+}
+function remisionesCard(){
+ const f=(D.recargas||[]).filter(r=>r.estado==='Falta remisión');
+ if(!f.length)return `<div class="card kp"><div class="k">Remisiones pendientes</div><b style="color:#22694B;font-size:28px">0</b><small>todo al día</small></div>`;
+ const sedes=[...new Set(f.map(r=>r.sede))];
+ return `<div class="card kp link" role="button" tabindex="0" onclick="sede='${esc(sedes[0])}';pintar();ver('Rc')"><div class="k">Remisiones pendientes</div><b style="color:#8A5200;font-size:28px">${f.length}</b><small>${sedes.map(esc).join(' y ')} · tocar para ver</small></div>`;
 }
 
-function grafica(s,L,dias){
- const desde=Date.now()-dias*864e5,pts=L.filter(l=>valida(l)&&l.t>=desde).sort((a,b)=>a.t-b.t);
- if(pts.length<2)return '<div class="vacio">La gráfica aparece con al menos dos lecturas.</div>';
- const W=640,H=200,pl=34,pr=8,pt=10,pb=26,iw=W-pl-pr,ih=H-pt-pb,t0=desde,t1=Date.now();
- const x=t=>pl+(t-t0)/(t1-t0)*iw,y=v=>pt+ih-Math.min(v,s.capacidad)/s.capacidad*ih;
- const bw=Math.max(4,Math.min(18,iw/dias*0.6));
+function graficaDoble(dias){
+ const desde=Date.now()-dias*864e5,cols=['#6A1B3A','#C48BA1'];
+ const series=D.sedes.map((s,i)=>({s,c:cols[i%2],pts:lecturasDe(s.sede).filter(l=>valida(l)&&l.t>=desde).sort((a,b)=>a.t-b.t)}));
+ const total=series.reduce((a,x)=>a+x.pts.length,0);
+ const ley=series.map(x=>`<span><i style="background:${x.c}"></i>${esc(x.s.sede)}</span>`).join('')+'<span><i style="background:var(--ok);border-radius:50%"></i>Recarga</span><span><i style="background:none;border-top:2px dashed var(--aviso);height:0;vertical-align:3px"></i>Nivel de recarga</span>';
+ const titulo=`<h2>Nivel de los dos tanques<small>hasta ${dias} días</small></h2>`;
+ if(!total)return titulo+'<div class="vacio">La gráfica aparece con las primeras lecturas.</div>';
+ const max=Math.max(...D.sedes.map(s=>s.capacidad));
+ const chico=innerWidth<700,W=chico?360:640,H=chico?220:230,pl=30,pr=10,pt=10,pb=26,iw=W-pl-pr,ih=H-pt-pb;
+ const minT=Math.min(...series.flatMap(x0=>x0.pts.map(p=>p.t))),ahora=Date.now();
+ const t0=Math.max(desde,Math.min(minT-864e5,ahora-3*864e5)),t1=ahora+(ahora-t0)*0.04;
+ const x=t=>pl+(t-t0)/(t1-t0)*iw,y=v=>pt+ih-Math.min(v,max)/max*ih;
  let g='';
- [0,.5,1].forEach(f=>{const v=Math.round(s.capacidad*f),yy=y(v);g+=`<line x1="${pl}" x2="${W-pr}" y1="${yy}" y2="${yy}" stroke="#EFE6EA"/><text x="${pl-6}" y="${yy+4}" font-size="11" text-anchor="end" fill="#8a7680">${v}</text>`;});
- pts.forEach(p=>{const h=Math.max(2,pt+ih-y(p.nivel));g+=`<rect x="${x(p.t)-bw/2}" y="${y(p.nivel)}" width="${bw}" height="${h}" rx="3" fill="${p.mov==='Recarga'?'#2E7D5B':'#B98AA0'}"><title>${fechaHora(p.t)}: ${num(p.nivel)} pulg</title></rect>`;});
- const ya=y(s.aviso);g+=`<line x1="${pl}" x2="${W-pr}" y1="${ya}" y2="${ya}" stroke="#C77700" stroke-width="2" stroke-dasharray="6 4"/>`;
- const marcas=dias<=14?[0,Math.round(dias/2),dias]:[0,10,20,30];
- marcas.forEach(d=>{const t=t1-(dias-d)*864e5;g+=`<text x="${Math.min(W-pr-20,Math.max(pl,x(t)))}" y="${H-6}" font-size="11" fill="#8a7680" text-anchor="${d===0?'start':d===dias?'end':'middle'}">${d===dias?'hoy':fecha(t)}</text>`;});
- return `<svg class="graf" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfica del nivel del tanque ${esc(s.sede)}">${g}</svg>`;
+ [0,.5,1].forEach(f=>{const v=Math.round(max*f),yy=y(v);g+=`<line x1="${pl}" x2="${W-pr}" y1="${yy}" y2="${yy}" stroke="#EFE6EA"/><text x="${pl-6}" y="${yy+4}" font-size="11" text-anchor="end" fill="#8a7680">${v}</text>`;});
+ series.forEach(x0=>{const ya=y(x0.s.aviso);g+=`<line x1="${pl}" x2="${W-pr}" y1="${ya}" y2="${ya}" stroke="#C77700" stroke-width="1.5" stroke-dasharray="6 4"/><text x="${W-pr}" y="${ya-4}" font-size="10.5" text-anchor="start" fill="#8A5200">${esc(x0.s.sede)} ${x0.s.aviso}</text>`.replace(`x="${W-pr}" y="${ya-4}"`,`x="${pl+4}" y="${ya-4}"`);});
+ series.forEach(x0=>{if(x0.pts.length>1)g+=`<polyline points="${x0.pts.map(p=>x(p.t).toFixed(1)+','+y(p.nivel).toFixed(1)).join(' ')}" fill="none" stroke="${x0.c}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  x0.pts.forEach(p=>{const r=p.mov==='Recarga';g+=`<circle cx="${x(p.t).toFixed(1)}" cy="${y(p.nivel).toFixed(1)}" r="${r?5:3.5}" fill="${r?'#2E7D5B':x0.c}" stroke="#fff" stroke-width="1.5"><title>${esc(x0.s.sede)} · ${fechaHora(p.t)}: ${num(p.nivel)} pulg</title></circle>`;});});
+ const n=chico?3:4;for(let i=0;i<n;i++){const t=t0+(ahora-t0)*i/(n-1),ult=i===n-1;g+=`<text x="${x(t)}" y="${H-6}" font-size="11" fill="#8a7680" text-anchor="${i===0?'start':ult?'end':'middle'}">${ult?'hoy':fecha(t)}</text>`;}
+ const nota=series.some(x0=>x0.pts.length===1)?'<div class="ex" style="font-size:12.5px;color:var(--sec);margin-top:4px">La línea de cada tanque aparece con su segunda lectura.</div>':'';
+ return titulo+`<svg class="graf" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfica del nivel de los dos tanques">${g}</svg><div class="ley">${ley}</div>`+nota;
+}
+function ultimasLecturas(){
+ const L=D.lecturas.slice().sort((a,b)=>b.t-a.t).slice(0,6);
+ const h='<h2>Últimas lecturas<small class="link" style="cursor:pointer" onclick="ver(\'L\')">Ver todas</small></h2>';
+ if(!L.length)return h+'<div class="vacio">Aún no hay lecturas.</div>';
+ return h+L.map(l=>`<div class="ul"><div class="tx"><b>${esc(l.sede)} · ${diaLargo(l.t)}, ${hora(l.t)}</b><small>${esc(l.tecnico||'—')} · ${l.estado==='Dudosa'?'<span class="tag Dudosa">Dudosa</span>':l.estado==='Corregida'?'Corregida':esc(l.mov||'')}</small></div>${linkFoto(l)}<span class="v">${l.estado==='Dudosa'?'—':num(l.nivel)}</span></div>`).join('');
 }
 
 function etiqueta(l){if(l.estado==='Dudosa')return '<span class="tag Dudosa">Dudosa</span>';
@@ -285,7 +350,7 @@ function pintarRecargas(){
   return;}
  $('lstRc').innerHTML=R.map(r=>`<div class="li"><div class="tx"><b>${diaLargo(r.t)}, ${hora(r.t)} ${est(r)}</b><small>${num(r.inicial)} → ${num(r.final)} pulg · <b style="display:inline;color:#22694B">${signo(r.cambio)} pulg</b></small><small>${r.remision?'Remisión <b style="display:inline">'+esc(r.remision)+'</b> · registró '+esc(r.registro||'—'):'Falta que un técnico responda en Telegram con el número de remisión.'}</small></div></div>`).join('');
 }
-addEventListener('resize',()=>{if(D){pintarLecturas();pintarRecargas();}});
+let anchoAnt=innerWidth;addEventListener('resize',()=>{if(D&&(innerWidth<700)!==(anchoAnt<700))$('grafR').innerHTML=graficaDoble(30);anchoAnt=innerWidth;if(D){pintarLecturas();pintarRecargas();}});
 
 /* ---------- Demostración (?demo=1) ---------- */
 function demo(){
