@@ -227,7 +227,7 @@ function fechasEnEspanol(ss) {
       (h.tables || []).forEach(function(t) {
         let cambia = false;
         const cols = (t.columnProperties || []).map(function(c) {
-          if (c.columnType === 'DATE_TIME') { c.columnFormat = { type: 'DATE_TIME', pattern: 'dd/mm/yyyy h:mm am/pm' }; cambia = true; }
+          if (c.columnType === 'DATE_TIME') { c.columnFormat = { pattern: 'dd/mm/yyyy h:mm am/pm' }; cambia = true; }
           return c;
         });
         if (cambia) pedidos.push({ updateTable: { table: { tableId: t.tableId, columnProperties: cols }, fields: 'columnProperties' } });
