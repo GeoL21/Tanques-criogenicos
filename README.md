@@ -3,7 +3,7 @@
 Registro automático del nivel de los tanques criogénicos de Barranquilla y Baranoa.
 
 1. El técnico sube la foto del manómetro de nivel al tema de su sede en el grupo de Telegram **Gases Medicinales**.
-2. El bot **Tanque criogenico** la recoge (cada 5 minutos), Gemini lee la aguja y la lectura queda en la hoja **Tanques criogénicos** (cuenta cilindrocrc).
+2. El bot **Tanque criogenico** la recoge (cada 5 minutos). Gemini **ubica** en la foto el eje, la punta de la aguja y las marcas con número; el código calcula el ángulo y lo convierte en pulgadas (más preciso que pedirle a la IA el número). La lectura queda en la hoja **Tanques criogénicos** (cuenta cilindrocrc).
 3. El bot responde debajo de la foto con el reporte: nivel, consumo o recarga, promedio de 7 días y cuántos días faltan para el nivel de recarga.
 4. Este repositorio es el **tablero (PWA)** para consultar todo desde el celular o el PC.
 

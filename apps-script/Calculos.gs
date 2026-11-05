@@ -200,11 +200,102 @@ function promTxt(p) {
   return p < 0.05 ? 'sin consumo' : '−' + num(p) + ' pulg/día';
 }
 
+/***********************
+ * LECTURA POR GEOMETRÍA
+ * La IA solo ubica puntos en la foto (eje, punta de la aguja y marcas con número);
+ * el ángulo y las pulgadas se calculan aquí, sin adivinar.
+ ***********************/
+
+/** Ancho y alto de una foto JPEG leyendo su encabezado (bytes 0–255 o con signo). */
+function tamanoJpeg(bytes) {
+  const b = function(i) { return bytes[i] & 255; };
+  if (b(0) !== 0xFF || b(1) !== 0xD8) return null;
+  let i = 2;
+  while (i + 9 < bytes.length) {
+    if (b(i) !== 0xFF) { i++; continue; }
+    const m = b(i + 1);
+    if (m === 0xD8 || m === 0x01 || (m >= 0xD0 && m <= 0xD7)) { i += 2; continue; }
+    const largo = (b(i + 2) << 8) + b(i + 3);
+    if ((m >= 0xC0 && m <= 0xC3) || (m >= 0xC5 && m <= 0xC7) || (m >= 0xC9 && m <= 0xCB) || (m >= 0xCD && m <= 0xCF)) {
+      return { alto: (b(i + 5) << 8) + b(i + 6), ancho: (b(i + 7) << 8) + b(i + 8) };
+    }
+    i += 2 + largo;
+  }
+  return null;
+}
+
+/** Punto de la IA ([y, x] de 0 a 1000, o {x, y}) → píxeles. */
+function aPixeles(p, ancho, alto) {
+  if (!p) return null;
+  let y, x;
+  if (Array.isArray(p) && p.length >= 2) { y = Number(p[0]); x = Number(p[1]); }
+  else if (typeof p === 'object') { y = Number(p.y); x = Number(p.x); }
+  if (isNaN(x) || isNaN(y)) return null;
+  return { x: x / 1000 * ancho, y: y / 1000 * alto };
+}
+
+/** Ángulo en grados, creciendo en el sentido de las agujas del reloj (como sube la escala). */
+function anguloDesde(c, p) {
+  return Math.atan2(p.y - c.y, p.x - c.x) * 180 / Math.PI;
+}
+function giro(desde, hasta) { // de 0 a 360, en sentido horario
+  return ((hasta - desde) % 360 + 360) % 360;
+}
+
+/**
+ * Calcula la lectura a partir de los puntos que devolvió la IA.
+ * ia = { centro:[y,x], punta:[y,x], marcas:[{valor, punto:[y,x]}, ...] }
+ * Devuelve { lectura, entre:[a,b], marcasUsadas } o null si no alcanza la información.
+ */
+function lecturaPorGeometria(ia, ancho, alto, escala) {
+  if (!ia || !ancho || !alto) return null;
+  const c = aPixeles(ia.centro, ancho, alto), t = aPixeles(ia.punta, ancho, alto);
+  if (!c || !t) return null;
+  const radioAguja = Math.hypot(t.x - c.x, t.y - c.y);
+  if (radioAguja < Math.min(ancho, alto) * 0.03) return null; // punta pegada al eje: puntos mal ubicados
+  let marcas = (ia.marcas || []).map(function(m) {
+    const p = aPixeles(m.punto || m.p || m.pos, ancho, alto);
+    const v = Number(m.valor);
+    return p && !isNaN(v) && v >= 0 && v <= escala ? { v: v, a: anguloDesde(c, p) } : null;
+  }).filter(Boolean).sort(function(a, b) { return a.v - b.v; });
+  // Sin valores repetidos
+  marcas = marcas.filter(function(m, i) { return i === 0 || m.v !== marcas[i - 1].v; });
+  if (marcas.length < 2) return null;
+  // Ángulos medidos desde la primera marca: deben crecer junto con el valor
+  const a0 = marcas[0].a;
+  marcas.forEach(function(m) { m.g = giro(a0, m.a); });
+  marcas[0].g = 0;
+  const buenas = [marcas[0]];
+  for (let i = 1; i < marcas.length; i++) {
+    if (marcas[i].g > buenas[buenas.length - 1].g + 1) buenas.push(marcas[i]);
+  }
+  if (buenas.length < 2) return null;
+  // Grados por unidad de escala parecidos en todos los tramos (una marca mal ubicada se descarta)
+  const pend = [];
+  for (let i = 1; i < buenas.length; i++) pend.push((buenas[i].g - buenas[i - 1].g) / (buenas[i].v - buenas[i - 1].v));
+  const med = pend.slice().sort(function(a, b) { return a - b; })[Math.floor(pend.length / 2)];
+  const finales = [buenas[0]];
+  for (let i = 1; i < buenas.length; i++) {
+    const pd = (buenas[i].g - finales[finales.length - 1].g) / (buenas[i].v - finales[finales.length - 1].v);
+    if (pd > med * 0.6 && pd < med * 1.6) finales.push(buenas[i]);
+  }
+  if (finales.length < 2) return null;
+  // La aguja: mismo origen; si queda un poco antes de la primera marca, es negativa (cerca de 0)
+  let gn = giro(a0, anguloDesde(c, t));
+  if (gn > 330) gn -= 360;
+  let i = 1;
+  while (i < finales.length - 1 && gn > finales[i].g) i++;
+  const A = finales[i - 1], B = finales[i];
+  let lectura = A.v + (gn - A.g) * (B.v - A.v) / (B.g - A.g);
+  lectura = Math.max(0, Math.min(escala, lectura));
+  return { lectura: Math.round(lectura * 10) / 10, entre: [A.v, B.v], marcasUsadas: finales.length };
+}
+
 function escaparHtml(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // Para pruebas fuera de Apps Script.
 if (typeof module !== 'undefined') {
-  module.exports = { REGLAS, num, conSigno, fechaCorta, validarLectura, porcentaje, movimiento, promedioConsumo, analizar, reporte };
+  module.exports = { REGLAS, num, conSigno, fechaCorta, validarLectura, porcentaje, movimiento, promedioConsumo, analizar, reporte, tamanoJpeg, lecturaPorGeometria };
 }

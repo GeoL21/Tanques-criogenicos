@@ -901,12 +901,16 @@ function leerManometro(blob, sede) {
   const prompt =
     'Eres un técnico que lee manómetros de nivel de tanques criogénicos de oxígeno medicinal.\n' +
     'Tanque de la sede ' + sede.nombre + '. ' + desc + '\n' +
-    'Cómo leer: 1) ubica el eje central de la aguja; 2) prolonga en línea recta la aguja desde el eje, pasando por su punta, ' +
-    'hasta cortar el anillo de MARCAS (no los números); 3) di entre qué dos marcas cae ese corte y cuántas marcas cortas ' +
-    'pasó desde la marca larga anterior; 4) calcula la lectura con un decimal. ' +
-    'Si la foto está de lado, corrige mentalmente la perspectiva.\n' +
-    'Responde SOLO este JSON: {"es_manometro": true/false, "marca_anterior": número, "marca_siguiente": número, ' +
-    '"lectura": número o null, "confianza": "alta" | "media" | "baja", "motivo": "frase corta en español"}.\n' +
+    'NO calcules la lectura de memoria: necesito que UBIQUES PUNTOS en la foto, y yo hago la cuenta.\n' +
+    'Coordenadas: [y, x] normalizadas de 0 a 1000 sobre la foto completa (0,0 = esquina superior izquierda).\n' +
+    '1) "centro": el eje de la aguja (el tornillo o círculo donde gira).\n' +
+    '2) "punta": el extremo más lejano de la aguja principal (no el contrapeso del otro lado).\n' +
+    '3) "marcas": TODAS las marcas largas de la escala que tengan número impreso y se vean. Para cada una, su "valor" ' +
+    'y el "punto" exactamente sobre la RAYA de la escala (en el anillo de rayas), no sobre el número.\n' +
+    '4) "lectura": tu estimación de lo que marca (solo para comparar).\n' +
+    'Responde SOLO este JSON: {"es_manometro": true/false, "centro": [y, x], "punta": [y, x], ' +
+    '"marcas": [{"valor": número, "punto": [y, x]}, ...], "lectura": número o null, ' +
+    '"confianza": "alta" | "media" | "baja", "motivo": "frase corta en español"}.\n' +
     'Usa confianza "baja" si la aguja no se ve clara, hay reflejo sobre ella o no estás seguro de la escala.';
   const cuerpo = {
     contents: [{ parts: [
@@ -956,11 +960,38 @@ function leerManometro(blob, sede) {
     const j = JSON.parse(r.getContentText());
     const txt = j.candidates[0].content.parts.map(function(p) { return p.text || ''; }).join('');
     const ia = JSON.parse(txt.replace(/^```(json)?|```$/g, '').trim());
-    return ia;
+    return aplicarGeometria(ia, blob, sede);
   } catch (e) {
     Logger.log('Error con Gemini: ' + e.message);
     return { es_manometro: true, lectura: null, confianza: 'baja', errorIA: true, motivo: IA_NO_DISPONIBLE + ': ' + e.message };
   }
+}
+
+/**
+ * Con los puntos que ubicó la IA se calcula la lectura por ángulo (Calculos.gs).
+ * Si no alcanzan los puntos, queda la estimación de la IA tal cual.
+ */
+function aplicarGeometria(ia, blob, sede) {
+  if (!ia || ia.es_manometro === false) return ia;
+  const t = tamanoJpeg(blob.getBytes());
+  const g = t ? lecturaPorGeometria(ia, t.ancho, t.alto, sede.escala) : null;
+  const estim = ia.lectura === null || ia.lectura === undefined || ia.lectura === '' ? null : Number(ia.lectura);
+  if (!g) {
+    ia.motivo = (ia.motivo ? ia.motivo + ' · ' : '') + 'Estimación de la IA (no ubicó suficientes marcas).';
+    return ia;
+  }
+  ia.lectura_ia = estim;
+  ia.lectura = g.lectura;
+  ia.metodo = 'geometria';
+  let nota = 'Calculada por ángulo entre las marcas ' + g.entre[0] + ' y ' + g.entre[1] + ' (' + g.marcasUsadas + ' marcas).';
+  if (estim !== null && !isNaN(estim)) {
+    const dif = Math.abs(estim - g.lectura);
+    if (dif >= 3) nota += ' La IA estimaba ' + num(estim) + '.';
+    // Si el cálculo y la estimación se separan mucho, algo se ubicó mal: que lo revise una persona
+    if (dif > sede.escala * 0.12) { ia.confianza = 'baja'; nota += ' Diferencia grande: revisar la foto.'; }
+  }
+  ia.motivo = nota;
+  return ia;
 }
 
 /** Menú: muestra qué modelo de Gemini se está usando (lo busca si hace falta). */
