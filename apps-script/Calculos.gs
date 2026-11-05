@@ -152,16 +152,25 @@ function analizar(nueva, previas, recargas, sede) {
  * Arma el reporte (HTML de Telegram) que el bot publica debajo de la foto.
  * partes(ms) -> { dia, mes, hora, min } en hora de Colombia.
  */
-function reporte(sede, a, tMs, partes, motivoDudosa, lecturaAprox) {
+function reporte(sede, a, tMs, partes, motivoDudosa, lecturaAprox, revisar) {
   const L = [];
   L.push('<b>Tanque ' + sede.nombre + '</b> · ' + fechaCorta(partes(tMs)));
+  // El cálculo por ángulo y la estimación de la IA no coinciden: se pide confirmar el valor calculado
+  if (revisar) {
+    const v = num(Math.min(revisar.calc, sede.capacidad), 0);
+    L.push('⚠️ <b>Revisa esta lectura:</b> calculé <b>' + num(revisar.calc) + ' pulg</b>, pero la IA estimaba ' + num(revisar.estim) + '.');
+    L.push('Mira el manómetro: si marca ' + v + ', responde a este mensaje con <code>/corregir ' + v + '</code>; si no, con el valor que ves.');
+    L.push('Mientras tanto queda como <b>dudosa</b> y no cuenta en los cálculos.');
+    return L.join('\n');
+  }
   if (motivoDudosa) {
-    L.push('No pude leer bien el nivel en esta foto.');
+    L.push('⚠️ No pude leer bien el nivel en esta foto.');
     L.push('<i>' + escaparHtml(motivoDudosa) + '</i>');
-    if (lecturaAprox !== null && lecturaAprox !== undefined && !isNaN(lecturaAprox)) {
-      L.push('Lectura aproximada: ' + num(lecturaAprox) + ' pulg (no se usa en los cálculos).');
-    }
-    L.push('Quedó como <b>dudosa</b> en la hoja para revisarla.');
+    const hay = lecturaAprox !== null && lecturaAprox !== undefined && !isNaN(lecturaAprox);
+    if (hay) L.push('Lectura aproximada: ' + num(lecturaAprox) + ' pulg (no se usa en los cálculos).');
+    L.push('Quedó como <b>dudosa</b>. Si ves el valor en el manómetro, responde a este mensaje con ' +
+      (hay ? '<code>/corregir ' + num(Math.min(lecturaAprox, sede.capacidad), 0) + '</code> (o el valor que veas).'
+        : '<code>/corregir</code> y el número, por ejemplo <code>/corregir 41</code>.'));
     return L.join('\n');
   }
   L.push('Nivel: <b>' + num(a.nivel) + ' pulg</b> (' + a.pct + ' % de ' + sede.capacidad + ')' +

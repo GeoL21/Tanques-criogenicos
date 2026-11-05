@@ -506,7 +506,7 @@ function manejarMensaje(msg) {
     guardarReporte(envO, idLectura);
   } else {
     const esRecarga = val.valida && a.movimiento === 'Recarga';
-    const env = responderEnTema(msg, aviso + reporte(sede, a, tMs, partesFecha, val.valida ? null : val.motivo, aprox) + (esRecarga ? '\n\n' + PEDIR_REMISION : ''));
+    const env = responderEnTema(msg, aviso + reporte(sede, a, tMs, partesFecha, val.valida ? null : val.motivo, aprox, revisarDe(ia, val)) + (esRecarga ? '\n\n' + PEDIR_REMISION : ''));
     guardarReporte(env, idLectura);
     if (esRecarga) registrarRecarga(sede, a, tMs, idLectura, archivo.getUrl(), env && env.ok ? env.result.message_id : '', repetida ? repetida.id : '');
   }
@@ -551,7 +551,7 @@ function reintentarPendientes() {
     if (ids.length === 2 && sede.tema) {
       const esRecarga = val.valida && a.movimiento === 'Recarga';
       const env = responderEnTema({ chat: { id: ids[0] }, message_id: Number(ids[1]), is_topic_message: true, message_thread_id: Number(sede.tema) },
-        reporte(sede, a, l.t, partesFecha, val.valida ? null : val.motivo, aprox) + (esRecarga ? '\n\n' + PEDIR_REMISION : ''));
+        reporte(sede, a, l.t, partesFecha, val.valida ? null : val.motivo, aprox, revisarDe(ia, val)) + (esRecarga ? '\n\n' + PEDIR_REMISION : ''));
       guardarReporte(env, l.id);
       if (esRecarga) registrarRecarga(sede, a, l.t, l.id, 'https://drive.google.com/file/d/' + l.fotoId + '/view', env && env.ok ? env.result.message_id : '');
     }
@@ -965,6 +965,12 @@ function leerManometro(blob, sede) {
     Logger.log('Error con Gemini: ' + e.message);
     return { es_manometro: true, lectura: null, confianza: 'baja', errorIA: true, motivo: IA_NO_DISPONIBLE + ': ' + e.message };
   }
+}
+
+/** Si la lectura salió dudosa porque el cálculo por ángulo y la estimación de la IA no coinciden. */
+function revisarDe(ia, val) {
+  if (val.valida || !ia || ia.metodo !== 'geometria' || ia.lectura_ia === null || ia.lectura_ia === undefined || isNaN(ia.lectura_ia)) return null;
+  return { calc: Number(ia.lectura), estim: Number(ia.lectura_ia) };
 }
 
 /**
