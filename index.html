@@ -14,14 +14,19 @@ body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI'
 button{font:inherit;cursor:pointer;transition:transform 150ms var(--ease-out)}
 button:active:not(:disabled){transform:scale(.98)}
 button:focus-visible,a:focus-visible{outline:3px solid #2F6FDB;outline-offset:2px}
-header{background:linear-gradient(160deg,var(--vino),var(--vino2));color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 16px;display:flex;gap:12px;align-items:center}
-header img{height:52px;width:52px;border-radius:50%;background:#fff;padding:2px;flex:none}
-header h1{font-size:18px;margin:0;font-weight:800;line-height:1.2}
-header p{margin:3px 0 0;font-size:12.5px;opacity:.85}
-.estado{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;font-size:13px;font-weight:600;background:var(--okf);color:#22694B;border-bottom:1px solid #C9E6D8;position:sticky;top:0;z-index:5}
-.estado.off{background:var(--avisof);color:#8A5200;border-bottom-color:#F1DDB4}
-.estado.carga{background:var(--rosa);color:var(--vino);border-bottom-color:var(--borde)}
-.estado button{border:0;background:var(--vino);color:#fff;border-radius:10px;min-height:38px;padding:0 14px;font-size:13px;font-weight:700;white-space:nowrap}
+header{background:#fff;color:var(--txt);border-bottom:1px solid var(--borde);padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;gap:12px;align-items:center}
+header img{height:44px;width:44px;border-radius:50%;background:#fff;padding:1px;border:2px solid var(--vino);flex:none}
+header h1{font-size:17px;margin:0;font-weight:800;line-height:1.2;color:var(--vino)}
+header p{margin:2px 0 0;font-size:12.5px;color:var(--sec)}
+.topbar{display:flex;align-items:center;gap:12px;padding:10px 12px 0;max-width:720px;margin:0 auto}
+.topbar .tt{display:none}
+.estado{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:1;min-width:0;font-size:13px;font-weight:600}
+#estTxt{position:relative;background:var(--okf);color:#22694B;border-radius:20px;padding:6px 12px 6px 23px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#estTxt::before{content:"";position:absolute;left:10px;top:50%;width:7px;height:7px;margin-top:-3.5px;border-radius:50%;background:var(--ok)}
+.estado.off #estTxt{background:var(--avisof);color:#8A5200}.estado.off #estTxt::before{background:var(--aviso)}
+.estado.carga #estTxt{background:var(--rosa);color:var(--vino)}.estado.carga #estTxt::before{background:var(--vino)}
+.estado button{border:1.5px solid var(--vino);background:#fff;color:var(--vino);border-radius:10px;min-height:40px;padding:0 14px;font-size:13px;font-weight:700;white-space:nowrap}
+.brand,.pie{display:none}
 .wrap{padding:12px;max-width:720px;margin:0 auto}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
 .seg button{min-height:48px;border:1.5px solid var(--borde);border-radius:12px;background:#fff;color:var(--txt);font-size:16px;font-weight:700}
@@ -44,7 +49,11 @@ header p{margin:3px 0 0;font-size:12.5px;opacity:.85}
 .ks div{background:var(--rosa);border-radius:12px;padding:10px 12px}
 .ks b{display:block;font-size:19px;font-weight:800}
 .ks small{font-size:12.5px;color:var(--sec)}
-.graf{width:100%;height:auto;display:block}
+.graf{width:100%;height:auto;display:block;touch-action:pan-y}
+.gt .gsub{font-size:13px;color:var(--sec);margin:-6px 0 6px}
+.gbox{position:relative}
+.tip{position:absolute;z-index:2;background:#26181D;color:#fff;font-size:12.5px;line-height:1.4;border-radius:8px;padding:6px 9px;white-space:nowrap;pointer-events:none}
+.tip[hidden]{display:none}
 .ley{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--sec);margin-top:6px}
 .ley i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .li{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #F1E8EC}
@@ -78,7 +87,7 @@ nav button.on{color:var(--vino);box-shadow:inset 0 3px 0 var(--vino)}
 .modal .go{display:block;width:100%;margin-top:10px;padding:13px;border-radius:12px;border:0;background:var(--vino);color:#fff;font-weight:700;font-size:15px}
 .modal .err{color:var(--mal);font-size:13px;margin-top:10px;min-height:18px}
 .oculto{display:none!important}
-.hbtn{margin-left:auto;width:44px;height:44px;flex:none;border:0;border-radius:12px;background:rgba(255,255,255,.15);color:#fff;display:grid;place-items:center}
+.hbtn{margin-left:auto;width:44px;height:44px;flex:none;border:0;border-radius:12px;background:var(--rosa);color:var(--vino);display:grid;place-items:center}
 .hbtn svg{width:22px;height:22px}
 .inst{background:#FBEEF3;border:1px solid #D9A8BB;border-radius:16px;padding:12px 14px;margin:12px auto 0;max-width:696px}
 .inst .f{display:flex;gap:12px;align-items:center}
@@ -140,8 +149,16 @@ nav .ninst{display:none}
 /* ---------- PC: desde 1024 px ---------- */
 @media (min-width:1024px){
  body{padding-bottom:0;padding-left:220px}
- header{padding:16px 28px}
- .estado{padding:9px 28px}
+ header{display:none}
+ .topbar{max-width:1440px;padding:20px 28px 2px;margin:0}
+ .topbar .tt{display:block}
+ .topbar h2{margin:0;font-size:24px;font-weight:800;color:var(--txt);line-height:1.15}
+ .topbar small{display:block;font-size:13px;color:var(--sec);font-weight:600}
+ .estado{flex:none;margin-left:auto}
+ .brand{display:flex;gap:10px;align-items:center;padding:2px 6px 18px}
+ .brand img{width:42px;height:42px;border-radius:50%;border:2px solid var(--vino);padding:1px;background:#fff}
+ .brand b{color:var(--vino);font-weight:800;font-size:15px;line-height:1.15}
+ .pie{display:block;font-size:11.5px;color:#9a8790;padding:10px 8px 0;line-height:1.4}
  nav{top:0;bottom:0;right:auto;width:220px;display:flex;flex-direction:column;gap:4px;border-top:0;border-right:1px solid var(--borde);padding:18px 12px}
  nav button{flex-direction:row;justify-content:flex-start;gap:12px;font-size:15px;padding:13px 14px;border-radius:12px;color:#5b4650}
  nav button.on{background:var(--vino);color:#fff;box-shadow:none}
@@ -153,17 +170,18 @@ nav .ninst{display:none}
  #vLecturas .seg,#vRecargas .seg{max-width:420px}
  #btnInst,.inst{display:none!important}
  nav .ninst{display:flex;margin-top:auto;border:1.5px solid var(--vino);color:var(--vino)}
+ nav .ninst.oculto+.pie{margin-top:auto}
  nav .ninst.oculto{display:none}
 }
 </style></head><body>
 <header><img src="logo.jpg" alt=""><div><h1>Tanques criogénicos</h1><p id="sub">Clínica Reina Catalina · Barranquilla y Baranoa</p></div><button id="btnInst" class="hbtn oculto" aria-label="Instalar app" onclick="instalar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg></button></header>
-<div class="estado carga" id="est" role="status"><span id="estTxt">Cargando…</span><button id="btnAct" onclick="cargar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></svg>Actualizar</button></div>
+<div class="topbar"><div class="tt"><h2 id="tituloVista">Resumen</h2><small>Barranquilla y Baranoa</small></div><div class="estado carga" id="est" role="status"><span id="estTxt">Cargando…</span><button id="btnAct" onclick="cargar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></svg>Actualizar</button></div></div>
 
 <div style="padding:0 12px"><div id="inst" class="inst oculto" role="region" aria-label="Instalar la app"><div class="f"><img src="icon-192.png" alt=""><div class="tx"><b>Instala el tablero</b><small>Ábrelo desde la pantalla de inicio, sin la barra del navegador.</small></div><button class="x" aria-label="Ahora no" onclick="cerrarInst()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg></button></div><button id="instGo" class="go" onclick="instalar()">Instalar</button><p id="instPasos" class="oculto">En Safari toca <b style="display:inline;font-size:inherit;color:inherit">Compartir</b> (el cuadro con la flecha hacia arriba) y luego <b style="display:inline;font-size:inherit;color:inherit">Agregar a inicio</b>.</p></div>
 </div>
 <div id="vResumen" class="wrap">
  <div class="top" id="topR"></div>
- <div class="mid"><div class="card" id="grafR"></div><div class="card" id="ultR"></div></div>
+ <div class="mid"><div id="grafR"></div><div class="card" id="ultR"></div></div>
 </div>
 <div id="vLecturas" class="wrap" style="display:none">
  <div class="seg" id="segL"></div>
@@ -175,10 +193,12 @@ nav .ninst{display:none}
 </div>
 
 <nav>
+ <div class="brand"><img src="logo.jpg" alt=""><b>Tanques<br>criogénicos</b></div>
  <button id="nR" class="on" onclick="ver('R')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 13m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M13.45 11.55l2.05 -2.05"/><path d="M6.4 20a9 9 0 1 1 11.2 0z"/></svg>Resumen</button>
  <button id="nL" onclick="ver('L')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l11 0"/><path d="M9 12l11 0"/><path d="M9 18l11 0"/><path d="M5 6l0 .01"/><path d="M5 12l0 .01"/><path d="M5 18l0 .01"/></svg>Lecturas</button>
  <button id="nRc" onclick="ver('Rc')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M18 11l-6 -6"/><path d="M6 11l6 -6"/></svg>Recargas</button>
  <button id="nInst" class="ninst oculto" onclick="instalar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>Instalar app</button>
+ <div class="pie">Clínica Reina Catalina<br>Barranquilla y Baranoa</div>
 </nav>
 
 <div class="modal" id="ingreso"><div class="box"><img src="logo.jpg" alt=""><h3>Tanques criogénicos</h3>
@@ -241,7 +261,9 @@ async function entrar(){const c=$('codigo').value.trim();if(!c){$('ingErr').text
 $('codigo').addEventListener('keydown',e=>{if(e.key==='Enter')entrar();});
 
 /* ---------- Pintar ---------- */
-function ver(v){vista=v;['R','L','Rc'].forEach(x=>{$('v'+({R:'Resumen',L:'Lecturas',Rc:'Recargas'}[x])).style.display=x===v?'block':'none';$('n'+x).classList.toggle('on',x===v);});window.scrollTo(0,0);}
+function tituloVentana(){const n={R:'Resumen',L:'Lecturas',Rc:'Recargas'}[vista];$('tituloVista').textContent=n;
+ const app=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;document.title=app?n:'Tanques criogénicos · '+n;}
+function ver(v){vista=v;setTimeout(tituloVentana);['R','L','Rc'].forEach(x=>{$('v'+({R:'Resumen',L:'Lecturas',Rc:'Recargas'}[x])).style.display=x===v?'block':'none';$('n'+x).classList.toggle('on',x===v);});window.scrollTo(0,0);}
 function elegir(s){sede=s;ls.set('sede',s);pintar();}
 function segHtml(){if(!D)return '';return D.sedes.map(s=>{const n=D.lecturas.filter(l=>l.sede===s.sede).length;return `<button class="${s.sede===sede?'on':''}" aria-pressed="${s.sede===sede}" onclick="elegir('${esc(s.sede)}')">${esc(s.sede)}<span class="cn">${n}</span></button>`;}).join('');}
 function lecturasDe(s){return D.lecturas.filter(l=>l.sede===s).sort((a,b)=>b.t-a.t);}
@@ -250,11 +272,11 @@ function valida(l){return (l.estado==='Automática'||l.estado==='Corregida')&&l.
 let animado=false;
 function pintar(){
  if(!D){const sk='<div class="card"><div class="sk" style="width:40%"></div><div class="sk" style="height:46px;width:55%"></div><div class="sk"></div></div>';
-  $('topR').innerHTML=sk+sk;$('grafR').innerHTML=$('ultR').innerHTML='<div class="sk"></div><div class="sk"></div>';$('lstL').innerHTML=$('lstRc').innerHTML='<div class="sk"></div><div class="sk"></div>';return;}
+  $('topR').innerHTML=sk+sk;$('grafR').innerHTML=sk;$('ultR').innerHTML='<div class="sk"></div><div class="sk"></div>';$('lstL').innerHTML=$('lstRc').innerHTML='<div class="sk"></div><div class="sk"></div>';return;}
  if(!D.sedes.some(s=>s.sede===sede))sede=D.sedes[0].sede;
  ['segL','segRc'].forEach(id=>$(id).innerHTML=segHtml());
  $('topR').innerHTML=D.sedes.map(tanqueCard).join('')+proximaCard()+remisionesCard();
- $('grafR').innerHTML=graficaDoble(30);
+ $('grafR').innerHTML=D.sedes.map(s=>graficaTanque(s,30)).join('');
  $('ultR').innerHTML=ultimasLecturas();
  const fill=()=>document.querySelectorAll('.tq i').forEach(i=>i.style.height=i.dataset.h+'%');
  if(animado)fill();else{animado=true;requestAnimationFrame(()=>requestAnimationFrame(fill));}
@@ -315,27 +337,52 @@ function remisionesCard(){
  return `<div class="card kp link" role="button" tabindex="0" onclick="sede='${esc(sedes[0])}';pintar();ver('Rc')"><div class="k">Remisiones pendientes</div><b style="color:#8A5200;font-size:28px">${f.length}</b><small>${sedes.map(esc).join(' y ')} · tocar para ver</small></div>`;
 }
 
-function graficaDoble(dias){
- const desde=Date.now()-dias*864e5,cols=['#6A1B3A','#C48BA1'];
- const series=D.sedes.map((s,i)=>({s,c:cols[i%2],pts:lecturasDe(s.sede).filter(l=>valida(l)&&l.t>=desde).sort((a,b)=>a.t-b.t)}));
- const total=series.reduce((a,x)=>a+x.pts.length,0);
- const ley=series.map(x=>`<span><i style="background:${x.c}"></i>${esc(x.s.sede)}</span>`).join('')+'<span><i style="background:var(--ok);border-radius:50%"></i>Recarga</span><span><i style="background:none;border-top:2px dashed var(--aviso);height:0;vertical-align:3px"></i>Nivel de recarga</span>';
- const titulo=`<h2>Nivel de los dos tanques<small>hasta ${dias} días</small></h2>`;
- if(!total)return titulo+'<div class="vacio">La gráfica aparece con las primeras lecturas.</div>';
- const max=Math.max(...D.sedes.map(s=>s.capacidad));
- const chico=innerWidth<700,W=chico?360:640,H=chico?220:230,pl=30,pr=10,pt=10,pb=26,iw=W-pl-pr,ih=H-pt-pb;
- const minT=Math.min(...series.flatMap(x0=>x0.pts.map(p=>p.t))),ahora=Date.now();
- const t0=Math.max(desde,Math.min(minT-864e5,ahora-3*864e5)),t1=ahora+(ahora-t0)*0.04;
- const x=t=>pl+(t-t0)/(t1-t0)*iw,y=v=>pt+ih-Math.min(v,max)/max*ih;
- let g='';
- [0,.5,1].forEach(f=>{const v=Math.round(max*f),yy=y(v);g+=`<line x1="${pl}" x2="${W-pr}" y1="${yy}" y2="${yy}" stroke="#EFE6EA"/><text x="${pl-6}" y="${yy+4}" font-size="11" text-anchor="end" fill="#8a7680">${v}</text>`;});
- series.forEach(x0=>{const ya=y(x0.s.aviso);g+=`<line x1="${pl}" x2="${W-pr}" y1="${ya}" y2="${ya}" stroke="#C77700" stroke-width="1.5" stroke-dasharray="6 4"/><text x="${W-pr}" y="${ya-4}" font-size="10.5" text-anchor="start" fill="#8A5200">${esc(x0.s.sede)} ${x0.s.aviso}</text>`.replace(`x="${W-pr}" y="${ya-4}"`,`x="${pl+4}" y="${ya-4}"`);});
- series.forEach(x0=>{if(x0.pts.length>1)g+=`<polyline points="${x0.pts.map(p=>x(p.t).toFixed(1)+','+y(p.nivel).toFixed(1)).join(' ')}" fill="none" stroke="${x0.c}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
-  x0.pts.forEach(p=>{const r=p.mov==='Recarga';g+=`<circle cx="${x(p.t).toFixed(1)}" cy="${y(p.nivel).toFixed(1)}" r="${r?5:3.5}" fill="${r?'#2E7D5B':x0.c}" stroke="#fff" stroke-width="1.5"><title>${esc(x0.s.sede)} · ${fechaHora(p.t)}: ${num(p.nivel)} pulg</title></circle>`;});});
- const n=chico?3:4;for(let i=0;i<n;i++){const t=t0+(ahora-t0)*i/(n-1),ult=i===n-1;g+=`<text x="${x(t)}" y="${H-6}" font-size="11" fill="#8a7680" text-anchor="${i===0?'start':ult?'end':'middle'}">${ult?'hoy':fecha(t)}</text>`;}
- const nota=series.some(x0=>x0.pts.length===1)?'<div class="ex" style="font-size:12.5px;color:var(--sec);margin-top:4px">La línea de cada tanque aparece con su segunda lectura.</div>':'';
- return titulo+`<svg class="graf" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfica del nivel de los dos tanques">${g}</svg><div class="ley">${ley}</div>`+nota;
+/* Gráfica de un tanque: nivel en %, zona de recarga y pronóstico de cuándo llega a ella. */
+function graficaTanque(s,dias){
+ const ahora=Date.now(),desde=ahora-dias*864e5;
+ const pts=lecturasDe(s.sede).filter(l=>valida(l)&&l.t>=desde).sort((a,b)=>a.t-b.t);
+ const pc=v=>Math.min(100,v/s.capacidad*100);
+ const cab=`<h2>${esc(s.sede)}<small>${s.nivel!=null?'hoy '+num(s.nivel)+' pulg · '+s.pct+' %':''}</small></h2>`;
+ if(!pts.length)return `<div class="card gt">${cab}<div class="vacio">La gráfica aparece con la primera lectura.</div></div>`;
+ const tR=s.dias!=null&&s.dias<=45?s.ultimaT+s.dias*864e5:null;
+ let sub;
+ if(s.nivel!=null&&s.nivel<=s.aviso)sub='<span style="color:var(--mal);font-weight:700">Ya está en el nivel de recarga ('+s.aviso+' pulg).</span>';
+ else if(tR)sub=`Llega a ${s.aviso} pulg el <b style="color:${s.dias<=7?'#8A5200':'var(--txt)'}">~${fecha(tR)}</b> (en ~${num(s.dias,0)} días)`;
+ else sub=pts.length<2?'El pronóstico aparece con la segunda lectura.':'El pronóstico aparece con unas 12 h de lecturas.';
+ const chico=innerWidth<700,W=chico?360:600,H=chico?210:230,pl=36,pr=12,pt=12,pb=26,iw=W-pl-pr,ih=H-pt-pb;
+ const t0=Math.max(desde,Math.min(pts[0].t-864e5,ahora-3*864e5)),fin=Math.max(ahora,tR||0),t1=fin+(fin-t0)*0.04;
+ const x=t=>pl+(t-t0)/(t1-t0)*iw,y=v=>pt+ih-v/100*ih;
+ const ya=y(pc(s.aviso));
+ let g=`<rect x="${pl}" y="${ya}" width="${iw}" height="${y(0)-ya}" fill="#FBE3E0"/>`;
+ [0,25,50,75,100].forEach(p=>{g+=`<line x1="${pl}" x2="${W-pr}" y1="${y(p)}" y2="${y(p)}" stroke="#F1E8EC"/><text x="${pl-6}" y="${y(p)+4}" font-size="11" text-anchor="end" fill="#8a7680">${p}%</text>`;});
+ g+=`<text x="${pl+6}" y="${ya+14}" font-size="11" fill="#9B2C1F">Nivel de recarga · ${s.aviso} pulg</text>`;
+ const linea=pts.map(p=>x(p.t).toFixed(1)+','+y(pc(p.nivel)).toFixed(1));
+ if(pts.length>1){
+  g+=`<path d="M${linea.join('L')}L${x(pts[pts.length-1].t).toFixed(1)},${y(0)}L${x(pts[0].t).toFixed(1)},${y(0)}Z" fill="#6A1B3A" opacity=".09"/>`;
+  g+=`<polyline points="${linea.join(' ')}" fill="none" stroke="#6A1B3A" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>`;
+ }
+ const u=pts[pts.length-1];
+ if(tR&&s.nivel>s.aviso){g+=`<line x1="${x(u.t)}" y1="${y(pc(u.nivel))}" x2="${x(tR)}" y2="${ya}" stroke="#6A1B3A" stroke-width="2" stroke-dasharray="5 5"/><circle cx="${x(tR)}" cy="${ya}" r="5" fill="#fff" stroke="#B3261E" stroke-width="2.5"/><text x="${Math.min(x(tR),W-pr-22)}" y="${ya+20}" font-size="12" font-weight="700" fill="#9B2C1F" text-anchor="middle">~${fecha(tR)}</text>`;}
+ pts.forEach(p=>{if(p.mov==='Recarga')g+=`<circle cx="${x(p.t).toFixed(1)}" cy="${y(pc(p.nivel)).toFixed(1)}" r="5" fill="#2E7D5B" stroke="#fff" stroke-width="1.5"/>`;});
+ g+=`<circle cx="${x(u.t)}" cy="${y(pc(u.nivel))}" r="5" fill="#6A1B3A" stroke="#fff" stroke-width="2"/>`;
+ const n=chico?3:4;for(let i=0;i<n;i++){const t=t0+(fin-t0)*i/(n-1),ul=i===n-1;g+=`<text x="${x(t)}" y="${H-7}" font-size="11" fill="#8a7680" text-anchor="${i===0?'start':ul?'end':'middle'}">${ul&&!tR?'hoy':fecha(t)}</text>`;}
+ g+=`<g class="cur" style="display:none"><line y1="${pt}" y2="${y(0)}" stroke="#26181D" stroke-dasharray="2 3" opacity=".5"/><circle r="5" fill="#fff" stroke="#6A1B3A" stroke-width="2.5"/></g>`;
+ const datos=pts.map((p,i)=>({x:+x(p.t).toFixed(1),y:+y(pc(p.nivel)).toFixed(1),t:p.t,v:p.nivel,c:i?p.nivel-pts[i-1].nivel:null,r:p.mov==='Recarga'}));
+ return `<div class="card gt" data-p='${JSON.stringify(datos)}' data-cap="${s.capacidad}" data-w="${W}">${cab}<div class="gsub">${sub}</div><div class="gbox"><svg class="graf" viewBox="0 0 ${W} ${H}" role="img" aria-label="Nivel del tanque ${esc(s.sede)} en los últimos días" onpointermove="cursor(event,this)" onpointerdown="cursor(event,this)" onpointerleave="cursorFuera(this)">${g}</svg><div class="tip" hidden></div></div><div class="ley"><span><i style="background:#6A1B3A"></i>Nivel</span><span><i style="background:#2E7D5B;border-radius:50%"></i>Recarga</span><span><i style="background:#FBE3E0;border:1px solid #E7B8B2"></i>Zona de recarga</span>${tR?'<span><i style="background:none;border-top:2px dashed #6A1B3A;height:0;vertical-align:3px"></i>Pronóstico</span>':''}</div></div>`;
 }
+/* Valor exacto al pasar el dedo o el ratón */
+function cursor(e,svg){
+ const card=svg.closest('.gt'),P=JSON.parse(card.dataset.p),W=+card.dataset.w,cap=+card.dataset.cap;
+ const r=svg.getBoundingClientRect(),mx=(e.clientX-r.left)/r.width*W;
+ let k=0;P.forEach((p,i)=>{if(Math.abs(p.x-mx)<Math.abs(P[k].x-mx))k=i;});const p=P[k];
+ const g=svg.querySelector('.cur');g.style.display='';g.querySelector('line').setAttribute('x1',p.x);g.querySelector('line').setAttribute('x2',p.x);
+ const c=g.querySelector('circle');c.setAttribute('cx',p.x);c.setAttribute('cy',p.y);
+ const tip=card.querySelector('.tip');tip.hidden=false;
+ tip.innerHTML=`${diaLargo(p.t)}, ${hora(p.t)}<br><b>${num(p.v)} pulg</b> (${Math.round(p.v/cap*100)} %)`+(p.r?`<br><span style="color:#8FE3B9">Recarga ${signo(p.c)} pulg</span>`:p.c!=null?`<br>cambio ${signo(p.c)} pulg`:'');
+ const px=p.x/W*r.width,tw=tip.offsetWidth;tip.style.left=Math.max(0,Math.min(r.width-tw,px-tw/2))+'px';tip.style.top=Math.max(0,p.y/W*r.width-tip.offsetHeight-12)+'px';
+}
+function cursorFuera(svg){const card=svg.closest('.gt');svg.querySelector('.cur').style.display='none';card.querySelector('.tip').hidden=true;}
+
 function ultimasLecturas(){
  const L=D.lecturas.filter(l=>l.estado!=='Reemplazada').sort((a,b)=>b.t-a.t).slice(0,6);
  const h='<h2>Últimas lecturas<small class="link" style="cursor:pointer" onclick="ver(\'L\')">Ver todas</small></h2>';
@@ -377,7 +424,7 @@ function pintarRecargas(){
   return;}
  $('lstRc').innerHTML=R.map(r=>`<div class="li"><div class="tx"><b>${diaLargo(r.t)}, ${hora(r.t)} ${est(r)}</b><small>${num(r.inicial)} → ${num(r.final)} pulg · <b style="display:inline;color:#22694B">${signo(r.cambio)} pulg</b></small><small>${r.remision?'Remisión <b style="display:inline">'+esc(r.remision)+'</b> · registró '+esc(r.registro||'—'):'Falta que un técnico responda en Telegram con el número de remisión.'}</small></div></div>`).join('');
 }
-let anchoAnt=innerWidth;addEventListener('resize',()=>{if(D&&(innerWidth<700)!==(anchoAnt<700))$('grafR').innerHTML=graficaDoble(30);anchoAnt=innerWidth;if(D){pintarLecturas();pintarRecargas();}});
+let anchoAnt=innerWidth;addEventListener('resize',()=>{if(D&&(innerWidth<700)!==(anchoAnt<700))$('grafR').innerHTML=D.sedes.map(s=>graficaTanque(s,30)).join('');anchoAnt=innerWidth;if(D){pintarLecturas();pintarRecargas();}});
 
 /* ---------- Demostración (?demo=1) ---------- */
 function demo(){
@@ -401,6 +448,7 @@ setInterval(()=>{if(document.visibilityState==='visible'&&ls.get('codigo','')&&!
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&Date.now()-ultimaCarga>2*60000&&ls.get('codigo','')&&!DEMO)cargar();});
 
 /* ---------- Arranque ---------- */
+tituloVentana();
 (function(){
  if('serviceWorker' in navigator&&!DEMO)navigator.serviceWorker.register('sw.js').catch(()=>{});
  const g=ls.get('datos',null);if(g&&!DEMO){D=g;}
