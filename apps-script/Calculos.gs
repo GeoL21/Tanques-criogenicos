@@ -11,7 +11,9 @@ const REGLAS = {
   mantuvoMax: 1,      // cambiar 1 pulg o menos = se mantuvo
   margenCapacidad: 8, // se acepta hasta capacidad + 8 (la aguja puede pasar un poco)
   diasPromedio: 7,
-  diasPronto: 7,      // faltan 7 días o menos para el nivel de recarga = "Recarga pronto"
+  diasPronto: 7,
+  horasRitmo: 6,      // ventana para el "ritmo reciente" (consumo de las últimas horas)
+  ritmoAlto: 1.5,     // si el ritmo reciente supera 1,5 veces el promedio, se usa para estimar      // faltan 7 días o menos para el nivel de recarga = "Recarga pronto"
   minutosRepetida: 30 // otra foto del mismo tanque antes de 30 min reemplaza a la anterior
 };
 
@@ -107,6 +109,33 @@ function promedioConsumo(lecturas, ahoraMs, dias) {
 }
 
 /**
+ * Ritmo reciente (pulg/día): pendiente de la recta que mejor pasa por las lecturas de las
+ * últimas horas, sin cruzar una recarga. Con lecturas cada hora resiste el error de ±1 pulg
+ * de cada foto. null si hay menos de 3 lecturas o menos de 2 horas de datos.
+ */
+function ritmoReciente(lecturas, ahoraMs, horas) {
+  const desde = ahoraMs - (horas || REGLAS.horasRitmo) * 3600000;
+  let pts = lecturas.filter(function(l) { return l.t >= desde && l.t <= ahoraMs; });
+  for (let i = pts.length - 1; i > 0; i--) {
+    if (pts[i].nivel - pts[i - 1].nivel >= REGLAS.recargaMin) { pts = pts.slice(i); break; }
+  }
+  if (pts.length < 3 || (pts[pts.length - 1].t - pts[0].t) < 2 * 3600000) return null;
+  const n = pts.length;
+  const mx = pts.reduce(function(a, p) { return a + p.t / 3600000; }, 0) / n;
+  const my = pts.reduce(function(a, p) { return a + p.nivel; }, 0) / n;
+  let sxy = 0, sxx = 0;
+  pts.forEach(function(p) { const dx = p.t / 3600000 - mx; sxy += dx * (p.nivel - my); sxx += dx * dx; });
+  if (!sxx) return null;
+  return Math.max(0, -(sxy / sxx) * 24);
+}
+
+/** Decide con qué ritmo se estima: el promedio de 7 días, o el reciente si es mucho más alto. */
+function ritmoParaEstimar(promedio, reciente) {
+  const alto = reciente !== null && reciente > 0.5 && (promedio === null || reciente > promedio * REGLAS.ritmoAlto);
+  return { ritmo: alto ? reciente : promedio, alto: alto };
+}
+
+/**
  * Calcula todo lo de una lectura nueva.
  * nueva: { t, nivel } (nivel null si no fue válida)
  * previas: lecturas válidas de la sede (orden cronológico) ANTES de la nueva.
@@ -142,8 +171,13 @@ function analizar(nueva, previas, recargas, sede) {
     // El promedio de antes de la recarga es el que sirve para estimar.
     r.promedio = promedioConsumo(previas, ant.t, REGLAS.diasPromedio);
   }
-  if (r.promedio && r.promedio > 0.2 && nueva.nivel > sede.aviso) {
-    r.diasHastaRecarga = (nueva.nivel - sede.aviso) / r.promedio;
+  r.reciente = r.movimiento === 'Recarga' ? null : ritmoReciente(serie, nueva.t);
+  const rt = ritmoParaEstimar(r.promedio, r.reciente);
+  r.ritmoAlto = rt.alto;
+  // Con consumo alto y fotos seguidas, una bajada pequeña también es consumo (no "se mantuvo")
+  if (r.ritmoAlto && r.movimiento === 'Se mantuvo' && r.cambio < 0) r.movimiento = 'Consumo';
+  if (rt.ritmo && rt.ritmo > 0.2 && nueva.nivel > sede.aviso) {
+    r.diasHastaRecarga = (nueva.nivel - sede.aviso) / rt.ritmo;
   }
   return r;
 }
@@ -186,7 +220,11 @@ function reporte(sede, a, tMs, partes, motivoDudosa, lecturaAprox, revisar) {
     } else {
       L.push('Se mantuvo desde ' + desde + ' (' + conSigno(a.cambio) + ' pulg en ' + lapso + ')');
     }
-    if (a.promedio !== null) L.push('Promedio 7 días: ' + promTxt(a.promedio));
+    if (a.ritmoAlto) {
+      L.push('🔺 <b>Consumo alto:</b> en las últimas horas va a ' + promTxt(a.reciente) +
+        (a.reciente >= 12 ? ' (~' + num(a.reciente / 24) + ' pulg por hora)' : '') +
+        (a.promedio !== null ? '; el promedio de 7 días es ' + promTxt(a.promedio) : '') + '.');
+    } else if (a.promedio !== null) L.push('Promedio 7 días: ' + promTxt(a.promedio));
     if (a.ultimaRecarga) {
       L.push('Última recarga: ' + partes(a.ultimaRecarga.t).dia + ' ' + MESES_CORTOS[partes(a.ultimaRecarga.t).mes - 1] +
         ' (' + conSigno(a.ultimaRecarga.cambio) + ' pulg)');
@@ -196,12 +234,27 @@ function reporte(sede, a, tMs, partes, motivoDudosa, lecturaAprox, revisar) {
   }
   if (a.bajoNivel) {
     L.push('⚠️ <b>En el nivel de recarga o por debajo (' + sede.aviso + ' pulg).</b> Necesita recarga.');
-  } else if (a.diasHastaRecarga !== null && a.diasHastaRecarga <= REGLAS.diasPronto) {
-    L.push('🟠 <b>Recarga pronto:</b> al ritmo promedio llega a ' + sede.aviso + ' pulg en ~' + num(a.diasHastaRecarga) + ' días.');
   } else if (a.diasHastaRecarga !== null) {
-    L.push('Al ritmo promedio llega a ' + sede.aviso + ' pulg en ~' + num(a.diasHastaRecarga) + ' días.');
+    const ritmo = a.ritmoAlto ? 'al ritmo actual' : 'al ritmo promedio';
+    const cuando = cuandoLlega(a.diasHastaRecarga, tMs, partes);
+    if (a.diasHastaRecarga < 1) {
+      L.push('🔴 <b>Recarga urgente:</b> ' + ritmo + ' llega a ' + sede.aviso + ' pulg en ' + cuando + '. Avisar a Messer o a la administración.');
+    } else if (a.diasHastaRecarga <= REGLAS.diasPronto) {
+      L.push('🟠 <b>Recarga pronto:</b> ' + ritmo + ' llega a ' + sede.aviso + ' pulg en ' + cuando + '.');
+    } else {
+      L.push(ritmo.charAt(0).toUpperCase() + ritmo.slice(1) + ' llega a ' + sede.aviso + ' pulg en ' + cuando + '.');
+    }
   }
   return L.join('\n');
+}
+
+/** "~8 h (hacia las 6:40 p. m.)" si falta menos de 2 días; "~5,2 días" si falta más. */
+function cuandoLlega(dias, tMs, partes) {
+  if (dias >= 2) return '~' + num(dias) + ' días';
+  const h = dias * 24;
+  const p = partes(tMs + h * 3600000);
+  return '~' + num(h, 0) + ' h (hacia ' + (p.dia !== partes(tMs).dia ? 'el ' + p.dia + ' ' + MESES_CORTOS[p.mes - 1] + ' a ' : '') +
+    'las ' + horaAmPm(p.hora, p.min) + ')';
 }
 
 /** Consumo promedio: "−2,8 pulg/día", o "sin consumo" si es casi cero. */
@@ -306,5 +359,5 @@ function escaparHtml(s) {
 
 // Para pruebas fuera de Apps Script.
 if (typeof module !== 'undefined') {
-  module.exports = { REGLAS, num, conSigno, fechaCorta, validarLectura, porcentaje, movimiento, promedioConsumo, analizar, reporte, tamanoJpeg, lecturaPorGeometria };
+  module.exports = { REGLAS, num, conSigno, fechaCorta, validarLectura, porcentaje, movimiento, promedioConsumo, analizar, reporte, tamanoJpeg, lecturaPorGeometria, ritmoReciente };
 }

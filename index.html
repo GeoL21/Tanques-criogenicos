@@ -287,7 +287,7 @@ const COLOR={ok:'#2E7D5B',av:'#C77700',mal:'#B3261E'};
 /* Bien / Pronto / Recargar */
 function semaforo(s){
  if(s.nivel==null)return 'nd';
- if(s.nivel<=s.aviso)return 'mal';
+ if(s.nivel<=s.aviso||(s.dias!=null&&s.dias<1))return 'mal';
  if(s.dias!=null)return s.dias<=7?'av':'ok';
  return s.nivel<=s.aviso+(s.capacidad-s.aviso)*0.25?'av':'ok';
 }
@@ -297,12 +297,14 @@ function tanqueCard(s){
  const c=semaforo(s),buenas=L.filter(valida),ult=buenas[0],dud=L.filter(l=>l.estado==='Dudosa'&&l.t>(ult?ult.t:0));
  const pctAviso=Math.min(100,s.aviso/s.capacidad*100);
  let pill;
- if(c==='mal')pill='<span class="pill mal">Necesita recarga</span>';
+ if(s.nivel<=s.aviso)pill='<span class="pill mal">Necesita recarga</span>';
+ else if(s.dias!=null&&s.dias<2)pill=`<span class="pill ${c}">${s.dias<1?'Recarga urgente · ':''}~${num(s.dias*24,0)} h para recargar</span>`;
  else if(s.dias!=null)pill=`<span class="pill ${c}">~${num(s.dias,0)} días para recargar</span>`;
  else if(buenas.length<2)pill='<span class="pill nd">Con la próxima foto aparece el consumo</span>';
  else pill='<span class="pill nd">Los días para recargar salen con unas 12 h de lecturas</span>';
  const ex=[];
- if(s.prom7!=null)ex.push('Consumo −'+num(s.prom7)+' pulg/día');
+ if(s.ritmoAlto&&s.reciente!=null)ex.push('<b style="color:var(--mal)">Consumo alto: −'+num(s.reciente)+' pulg/día</b> (últimas horas)');
+ else if(s.prom7!=null)ex.push('Consumo −'+num(s.prom7)+' pulg/día');
  else if(ult&&ult.cambio!=null&&ult.mov!=='Recarga')ex.push('Última lectura '+signo(ult.cambio)+' pulg');
  if(s.recargaT)ex.push('última recarga '+fecha(s.recargaT)+' ('+signo(s.recargaCambio)+')');
  let av='';
