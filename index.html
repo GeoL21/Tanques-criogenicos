@@ -146,6 +146,31 @@ nav .ninst{display:none}
 @media (min-width:700px){.top{grid-template-columns:1fr 1fr}.top .tc{grid-column:auto}}
 @media (prefers-reduced-motion:reduce){button:active:not(:disabled){transform:none}.barra i,.tq i{transition:none}}
 
+/* ---------- Diseño B: un tanque grande por tarjeta ---------- */
+.top .tc{gap:18px;align-items:center;padding:16px}
+.tk{position:relative;flex:none;width:84px;height:150px;margin-top:14px}
+.tk .cuerpo{position:absolute;left:12%;right:12%;top:0;bottom:11%;border:3px solid var(--vino);border-radius:46% 46% 18% 18%/22% 22% 8% 8%;overflow:hidden;background:#F4EDF0}
+.tk .liq{position:absolute;left:0;right:0;bottom:0;height:0;transition:height 900ms var(--ease-out)}
+.tk .liq::before{content:"";position:absolute;left:0;right:0;top:-9px;height:10px;background:inherit;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 10' preserveAspectRatio='none'%3E%3Cpath d='M0 5Q10 0 20 5T40 5V10H0Z'/%3E%3C/svg%3E") 0 0/40px 10px repeat-x;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 10' preserveAspectRatio='none'%3E%3Cpath d='M0 5Q10 0 20 5T40 5V10H0Z'/%3E%3C/svg%3E") 0 0/40px 10px repeat-x;animation:ola 2.6s linear infinite}
+.tk .brillo{position:absolute;left:14%;top:8%;bottom:10%;width:9%;border-radius:10px;background:rgba(255,255,255,.35)}
+.tk .linea{position:absolute;left:-4px;right:-4px;border-top:2.5px dashed #fff;box-shadow:0 -1px 0 rgba(38,24,29,.7),0 1px 0 rgba(38,24,29,.7)}
+.tk .patas{position:absolute;left:22%;right:22%;bottom:0;height:13%;border-left:4px solid var(--vino);border-right:4px solid var(--vino)}
+.tk .valv{position:absolute;left:44%;width:12%;top:-8%;height:9%;background:var(--vino);border-radius:3px 3px 0 0}
+.tk .vapor{position:absolute;left:50%;top:-9%;width:2px;height:2px}
+.tk .vapor i{position:absolute;width:9px;height:9px;border-radius:50%;background:rgba(160,190,210,.55);left:-6px;animation:vapor 3s ease-out infinite;opacity:0}
+.tk .vapor i:nth-child(2){animation-delay:1s}.tk .vapor i:nth-child(3){animation-delay:2s}
+@keyframes vapor{0%{transform:translate(0,4px) scale(.5);opacity:0}30%{opacity:.8}100%{transform:translate(7px,-18px) scale(1.5);opacity:0}}
+.tk.urg .cuerpo{animation:borde 1.6s ease-in-out infinite}
+@keyframes borde{50%{border-color:var(--mal);box-shadow:0 0 0 6px rgba(179,38,30,.18)}}
+.card.roja{background:var(--malf);border:2px solid var(--mal);animation:respira 2s ease-in-out infinite}
+@keyframes respira{50%{box-shadow:0 0 0 7px rgba(179,38,30,.15)}}
+.roja .sd{color:var(--mal)}.roja .nv{color:var(--mal)}
+.vacia{margin-top:8px;font-size:13.5px;line-height:1.3}
+.vacia b{display:block;font-size:30px;font-weight:800;color:var(--mal);font-variant-numeric:tabular-nums;line-height:1.1}
+@media (prefers-reduced-motion:reduce){.tk .liq::before,.tk .vapor i,.tk.urg .cuerpo,.card.roja{animation:none}.tk .liq{transition:none}}
+@media (min-width:700px){.top .tc{grid-column:auto}}
+@media (min-width:1024px){.top{grid-template-columns:1fr 1fr}.tk{width:104px;height:186px}.top .tc{padding:18px 20px}.tc .nv{font-size:50px}}
+
 /* ---------- PC: desde 1024 px ---------- */
 @media (min-width:1024px){
  body{padding-bottom:0;padding-left:220px}
@@ -165,7 +190,7 @@ nav .ninst{display:none}
  nav button:hover:not(.on){background:var(--rosa)}
  .wrap{max-width:1180px;padding:22px 28px}
  #vResumen{max-width:1440px}
- .top{grid-template-columns:1.35fr 1.35fr 1fr 1fr;gap:14px;margin-bottom:14px}
+ .top{gap:14px;margin-bottom:14px}
  .mid{grid-template-columns:3fr 2fr;gap:14px;align-items:start}
  #vLecturas .seg,#vRecargas .seg{max-width:420px}
  #btnInst,.inst{display:none!important}
@@ -275,10 +300,10 @@ function pintar(){
   $('topR').innerHTML=sk+sk;$('grafR').innerHTML=sk;$('ultR').innerHTML='<div class="sk"></div><div class="sk"></div>';$('lstL').innerHTML=$('lstRc').innerHTML='<div class="sk"></div><div class="sk"></div>';return;}
  if(!D.sedes.some(s=>s.sede===sede))sede=D.sedes[0].sede;
  ['segL','segRc'].forEach(id=>$(id).innerHTML=segHtml());
- $('topR').innerHTML=D.sedes.map(tanqueCard).join('')+proximaCard()+remisionesCard();
+ const orden={mal:0,av:1,ok:2,nd:3};$('topR').innerHTML=D.sedes.slice().sort((a,b)=>orden[semaforo(a)]-orden[semaforo(b)]).map(tanqueCard).join('')+proximaCard()+remisionesCard();
  $('grafR').innerHTML=D.sedes.map(s=>graficaTanque(s,30)).join('');
  $('ultR').innerHTML=ultimasLecturas();
- const fill=()=>document.querySelectorAll('.tq i').forEach(i=>i.style.height=i.dataset.h+'%');
+ const fill=()=>document.querySelectorAll('.tk .liq').forEach(i=>i.style.height=i.dataset.h+'%');
  if(animado)fill();else{animado=true;requestAnimationFrame(()=>requestAnimationFrame(fill));}
  pintarLecturas();pintarRecargas();
 }
@@ -293,12 +318,14 @@ function semaforo(s){
 }
 function tanqueCard(s){
  const L=lecturasDe(s.sede);
- if(s.nivel==null)return `<div class="card tc"><div class="tq" aria-hidden="true"></div><div class="tx"><div class="sd">${esc(s.sede)}</div><div class="ex">Aún no hay lecturas. Se llenan solas cuando el técnico sube la foto del manómetro al tema <b>Fotos del tanque ${esc(s.sede)}</b> en Telegram.</div></div></div>`;
+ if(s.nivel==null)return `<div class="card tc">${tanque(0,'#B98AA0',s.aviso/s.capacidad*100,false,'')}<div class="tx"><div class="sd">${esc(s.sede)}</div><div class="ex">Aún no hay lecturas. Se llenan solas cuando el técnico sube la foto del manómetro al tema <b>Fotos del tanque ${esc(s.sede)}</b> en Telegram.</div></div></div>`;
  const c=semaforo(s),buenas=L.filter(valida),ult=buenas[0],dud=L.filter(l=>l.estado==='Dudosa'&&l.t>(ult?ult.t:0));
- const pctAviso=Math.min(100,s.aviso/s.capacidad*100);
- let pill;
- if(s.nivel<=s.aviso)pill='<span class="pill mal">Necesita recarga</span>';
- else if(s.dias!=null&&s.dias<2)pill=`<span class="pill ${c}">${s.dias<1?'Recarga urgente · ':''}~${num(s.dias*24,0)} h para recargar</span>`;
+ const pctAviso=Math.min(100,s.aviso/s.capacidad*100),urg=c==='mal';
+ const ritmo=s.ritmoAlto&&s.reciente?s.reciente:s.prom7;
+ let pill='',cuenta='';
+ if(s.nivel<=s.aviso){if(ritmo)cuenta=`<div class="vacia">Al ritmo actual se <b style="display:inline;font-size:inherit">vacía</b> en<b>~${num(s.nivel/ritmo*24,0)} h</b></div>`;else pill='<span class="pill mal">Necesita recarga</span>';}
+ else if(s.dias!=null&&s.dias<1)cuenta=`<div class="vacia">Llega al nivel de recarga en<b>~${num(s.dias*24,0)} h</b></div>`;
+ else if(s.dias!=null&&s.dias<2)pill=`<span class="pill ${c}">~${num(s.dias*24,0)} h para recargar</span>`;
  else if(s.dias!=null)pill=`<span class="pill ${c}">~${num(s.dias,0)} días para recargar</span>`;
  else if(buenas.length<2)pill='<span class="pill nd">Con la próxima foto aparece el consumo</span>';
  else pill='<span class="pill nd">Los días para recargar salen con unas 12 h de lecturas</span>';
@@ -310,12 +337,16 @@ function tanqueCard(s){
  let av='';
  if(dud.length)av=`<div class="ex av">${dud.length===1?'La última foto no se pudo leer':'Las últimas '+dud.length+' fotos no se pudieron leer'}; se muestra la última lectura buena.</div>`;
  const nombre={ok:'bien',av:'pronto',mal:'necesita recarga',nd:''}[c];
- return `<div class="card tc">
-  <div class="tq" role="img" aria-label="Tanque al ${s.pct} por ciento, ${nombre}; nivel de recarga ${s.aviso} pulgadas"><i data-h="${s.pct}" style="background:${COLOR[c]||'#B98AA0'}${animado?';height:'+s.pct+'%':''}"></i><s style="bottom:${pctAviso}%"></s></div>
-  <div class="tx"><div class="sd">${esc(s.sede)}<small>${fechaHora(s.ultimaT)} · ${hace(s.ultimaT)}</small></div>
+ return `<div class="card tc${urg?' roja':''}">
+  ${tanque(s.pct,COLOR[c]||'#B98AA0',pctAviso,urg,`Tanque al ${s.pct} por ciento, ${nombre}; nivel de recarga ${s.aviso} pulgadas`)}
+  <div class="tx"><div class="sd">${esc(s.sede)}${urg?' · recarga urgente':''}<small>${fechaHora(s.ultimaT)} · ${hace(s.ultimaT)}</small></div>
    <div class="nv">${num(s.nivel)} <span>pulg</span></div>
    <div class="pc">${s.pct} % de ${s.capacidad} · recarga a ${s.aviso}</div>
-   ${pill}${ex.length?`<div class="ex">${ex.join(' · ')}</div>`:''}${av}${sinFoto(s)}</div></div>`;
+   ${cuenta}${pill}${ex.length?`<div class="ex">${ex.join(' · ')}</div>`:''}${av}${sinFoto(s)}</div></div>`;
+}
+/* Tanque criogénico dibujado: válvula con vapor, cuerpo con líquido y ola, línea de recarga y patas */
+function tanque(pct,color,pctAviso,urg,etq){
+ return `<div class="tk${urg?' urg':''}" ${etq?`role="img" aria-label="${etq}"`:'aria-hidden="true"'}><div class="valv"></div><div class="vapor"><i></i><i></i><i></i></div><div class="cuerpo"><i class="liq" data-h="${pct}" style="background:${color}${animado?';height:'+pct+'%':''}"></i><div class="brillo"></div><s class="linea" style="bottom:${pctAviso}%"></s></div><div class="patas"></div></div>`;
 }
 /* Aviso con cámara si el tanque lleva más de 24 h sin foto */
 function sinFoto(s){
