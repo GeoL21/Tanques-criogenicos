@@ -63,7 +63,11 @@ header p{margin:2px 0 0;font-size:12.5px;color:var(--sec)}
 .li small{display:block;font-size:12.5px;color:var(--sec);margin-top:2px;overflow-wrap:anywhere}
 .tag{display:inline-block;font-size:12px;font-weight:700;border-radius:8px;padding:3px 8px;white-space:nowrap}
 .tag.Consumo{background:var(--malf);color:#9B2C1F}.tag.Recarga{background:var(--okf);color:#22694B}
-.tag.mant{background:#F1EFE8;color:#444441}.tag.Dudosa{background:var(--avisof);color:#8A5200}
+.tag.mant{background:#F1EFE8;color:#444441}
+/* Recarga en lecturas: etiqueta verde sólida y fila en verde suave para que resalte */
+.tag.rc{background:#2E7D5B;color:#fff}
+tr.recarga td{background:var(--okf)}tr.recarga td:first-child{box-shadow:inset 4px 0 0 #2E7D5B}tr.recarga td.n{color:#22694B;font-weight:700}
+.li.recarga{background:var(--okf);box-shadow:inset 4px 0 0 #2E7D5B;border-radius:10px;padding-left:12px;padding-right:8px}.tag.Dudosa{background:var(--avisof);color:#8A5200}
 .foto{display:inline-flex;align-items:center;gap:5px;border:1.5px solid var(--borde);border-radius:18px;padding:0 12px;min-height:36px;font-size:13px;font-weight:700;color:var(--vino);text-decoration:none;white-space:nowrap}
 .vacio{text-align:center;color:#8a7680;padding:20px 8px;font-size:13.5px;line-height:1.5}
 .sk{height:16px;border-radius:8px;background:#EFE6EA;margin:10px 0}
@@ -482,7 +486,8 @@ function ultimasLecturas(){
 
 function etiqueta(l){if(l.estado==='Dudosa')return '<span class="tag Dudosa">Dudosa</span>';
  if(l.estado==='Reemplazada')return '<span class="tag mant">Reemplazada</span>';
- const c=l.mov==='Consumo'?'Consumo':l.mov==='Recarga'?'Recarga':'mant';return `<span class="tag ${c}">${esc(l.mov||'—')}</span>`;}
+ if(l.mov==='Recarga')return '<span class="tag rc">↑ Recarga</span>';
+ const c=l.mov==='Consumo'?'Consumo':'mant';return `<span class="tag ${c}">${esc(l.mov||'—')}</span>`;}
 function idFoto(l){const m=/\/d\/([\w-]{20,})/.exec(l.foto||'');return m?m[1]:'';}
 function linkFoto(l){const id=idFoto(l);return id?`<button class="foto" onclick="abrirFoto('${id}',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2"/><path d="M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></svg>Foto</button>`:'';}
 
@@ -571,12 +576,12 @@ function pintarLecturas(){
  if(!L.length){$('lstL').innerHTML='<div class="vacio">Aún no hay lecturas de '+esc(sede)+'.</div>';return;}
  if(window.matchMedia('(min-width:1024px)').matches){
   $('lstL').innerHTML=`<div class="tw"><table><thead><tr><th>Fecha y hora</th><th>Nivel (pulg)</th><th>% lleno</th><th>Cambio</th><th>Movimiento</th><th>Consumo por día</th><th>Técnico</th><th>Nota</th><th>Foto</th></tr></thead><tbody>`+
-  L.map(l=>`<tr><td>${diaLargo(l.t)}, ${hora(l.t)}</td><td class="n">${l.estado==='Dudosa'?'—':num(l.nivel)}</td><td class="n">${l.pct!=null&&l.estado!=='Dudosa'?l.pct+' %':'—'}</td><td class="n">${l.estado==='Dudosa'?'—':signo(l.cambio)}</td><td>${etiqueta(l)}</td><td class="n">${l.porDia!=null?signo(l.porDia):'—'}</td><td>${esc(l.tecnico)}</td><td style="max-width:260px;font-size:12.5px;color:var(--sec)">${esc(l.nota)}</td><td>${linkFoto(l)}</td></tr>`).join('')+'</tbody></table></div>';
+  L.map(l=>`<tr${l.mov==='Recarga'&&l.estado!=='Dudosa'&&l.estado!=='Reemplazada'?' class="recarga"':''}><td>${diaLargo(l.t)}, ${hora(l.t)}</td><td class="n">${l.estado==='Dudosa'?'—':num(l.nivel)}</td><td class="n">${l.pct!=null&&l.estado!=='Dudosa'?l.pct+' %':'—'}</td><td class="n">${l.estado==='Dudosa'?'—':signo(l.cambio)}</td><td>${etiqueta(l)}</td><td class="n">${l.porDia!=null?signo(l.porDia):'—'}</td><td>${esc(l.tecnico)}</td><td style="max-width:260px;font-size:12.5px;color:var(--sec)">${esc(l.nota)}</td><td>${linkFoto(l)}</td></tr>`).join('')+'</tbody></table></div>';
   return;}
  let dia='',h='';
  L.forEach(l=>{const d=diaLargo(l.t);if(d!==dia){dia=d;h+=`<div style="font-size:12.5px;font-weight:700;color:var(--sec);margin:12px 0 2px">${d}</div>`;}
   const linea=l.estado==='Dudosa'?esc(l.nota||'No se pudo leer la foto'):`${num(l.nivel)} pulg (${l.pct} %) · cambio ${signo(l.cambio)}`;
-  h+=`<div class="li"><div class="tx"><b>${hora(l.t)} · ${etiqueta(l)}</b><small>${linea}</small><small>Subió: ${esc(l.tecnico||'—')}</small></div>${linkFoto(l)}</div>`;});
+  h+=`<div class="li${l.mov==='Recarga'&&l.estado!=='Dudosa'&&l.estado!=='Reemplazada'?' recarga':''}"><div class="tx"><b>${hora(l.t)} · ${etiqueta(l)}</b><small>${linea}</small><small>Subió: ${esc(l.tecnico||'—')}</small></div>${linkFoto(l)}</div>`;});
  $('lstL').innerHTML=h;
 }
 
