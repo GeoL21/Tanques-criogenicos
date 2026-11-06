@@ -67,6 +67,7 @@ header p{margin:2px 0 0;font-size:12.5px;color:var(--sec)}
 /* Recarga en lecturas: etiqueta verde sólida y fila en verde suave para que resalte */
 .tag.rc{background:#2E7D5B;color:#fff}
 tr.recarga td{background:var(--okf)}tr.recarga td:first-child{box-shadow:inset 4px 0 0 #2E7D5B}tr.recarga td.n{color:#22694B;font-weight:700}
+.ul.recarga{background:var(--okf);box-shadow:inset 4px 0 0 #2E7D5B;border-radius:10px;padding-left:12px;padding-right:8px}.ul.recarga .v{color:#22694B}
 .li.recarga{background:var(--okf);box-shadow:inset 4px 0 0 #2E7D5B;border-radius:10px;padding-left:12px;padding-right:8px}.tag.Dudosa{background:var(--avisof);color:#8A5200}
 .foto{display:inline-flex;align-items:center;gap:5px;border:1.5px solid var(--vino);background:#F4E8ED;cursor:pointer;border-radius:18px;padding:0 12px;min-height:36px;font-size:13px;font-weight:700;color:var(--vino);text-decoration:none;white-space:nowrap}
 .vacio{text-align:center;color:#8a7680;padding:20px 8px;font-size:13.5px;line-height:1.5}
@@ -482,7 +483,11 @@ function ultimasLecturas(){
  const L=D.lecturas.filter(l=>l.estado!=='Reemplazada').sort((a,b)=>b.t-a.t).slice(0,6);
  const h='<h2>Últimas lecturas<small class="link" style="cursor:pointer" onclick="ver(\'L\')">Ver todas</small></h2>';
  if(!L.length)return h+'<div class="vacio">Aún no hay lecturas.</div>';
- return h+L.map(l=>`<div class="ul"><div class="tx"><b>${esc(l.sede)} · ${diaLargo(l.t)}, ${hora(l.t)}</b><small>${esc(l.tecnico||'—')} · ${l.estado==='Dudosa'?'<span class="tag Dudosa">Dudosa</span>':l.estado==='Corregida'?'Corregida':esc(l.mov||'')}</small></div>${linkFoto(l)}<span class="v">${l.estado==='Dudosa'?'—':num(l.nivel)}</span></div>`).join('');
+ return h+L.map(l=>{const rc=l.mov==='Recarga'&&l.estado!=='Dudosa';
+  // Recarga con su etiqueta verde; si la lectura fue corregida, se dice al lado
+  const mov=l.estado==='Dudosa'?'<span class="tag Dudosa">Dudosa</span>':rc?'<span class="tag rc">↑ Recarga</span>':esc(l.mov||'');
+  const corr=l.estado==='Corregida'?(l.mov?' · corregida':'Corregida'):'';
+  return `<div class="ul${rc?' recarga':''}"><div class="tx"><b>${esc(l.sede)} · ${diaLargo(l.t)}, ${hora(l.t)}</b><small>${esc(l.tecnico||'—')} · ${mov}${corr}</small></div>${linkFoto(l)}<span class="v">${l.estado==='Dudosa'?'—':num(l.nivel)}</span></div>`;}).join('');
 }
 
 function etiqueta(l){if(l.estado==='Dudosa')return '<span class="tag Dudosa">Dudosa</span>';
