@@ -1232,10 +1232,31 @@ function doPost(e) {
   try {
     if (d.accion === 'validar') return json({ ok: true });
     if (d.accion === 'datos') return json(datosTablero(Number(d.dias) || 60));
+    if (d.accion === 'foto') return json(fotoTablero(String(d.id || ''), d.tam === 'mini'));
     return json({ ok: false, error: 'Acción desconocida.' });
   } catch (err) {
     return json({ ok: false, error: 'Error en el servidor: ' + err.message });
   }
+}
+
+/**
+ * Foto del manómetro para verla dentro del tablero, sin pedir cuenta de Google.
+ * Solo entrega fotos que están en el registro de lecturas: el código del tablero
+ * no da acceso a ningún otro archivo del Drive. mini = vista previa pequeña.
+ */
+function fotoTablero(id, mini) {
+  if (!/^[\w-]{20,}$/.test(id)) return { ok: false, error: 'Foto no válida.' };
+  const cache = CacheService.getScriptCache();
+  let ids = cache.get('FOTOS_IDS');
+  if (!ids || ids.indexOf('|' + id + '|') < 0) {
+    ids = '|' + leerLecturas().map(function(l) { return l.fotoId; }).filter(String).join('|') + '|';
+    try { cache.put('FOTOS_IDS', ids, 600); } catch (e) {} // si son demasiadas, se lee la hoja cada vez
+  }
+  if (ids.indexOf('|' + id + '|') < 0) return { ok: false, error: 'Foto no encontrada.' };
+  const archivo = DriveApp.getFileById(id);
+  const b = mini ? archivo.getThumbnail() : archivo.getBlob();
+  if (!b) return { ok: true, vacia: true }; // Drive aún no genera la vista previa
+  return { ok: true, tipo: b.getContentType() || 'image/jpeg', datos: Utilities.base64Encode(b.getBytes()) };
 }
 
 function json(o) {
