@@ -53,6 +53,14 @@ const ESTADOS_LECTURA = ['Automática', 'Dudosa', 'Corregida', 'Reemplazada'];
 const VERSION_LISTAS = '2'; // sube cuando cambian las opciones de los desplegables
 
 /** Cómo es cada manómetro, para que la IA lo lea bien. */
+/**
+ * "Lupa": segunda mirada a una foto ampliada alrededor de la punta de la aguja.
+ * Solo en los tanques que aparecen aquí; paso = pulgadas que vale cada raya pequeña.
+ * Necesita el servicio avanzado "Google Slides API" (se usa para recortar la foto).
+ */
+const LUPA = { barranquilla: { paso: 2, cadaNumero: 20 } };
+const LUPA_MAX_DIF = 8; // si la lupa y el cálculo se separan más que esto, se deja el cálculo
+
 const DESCRIPCION_MANOMETRO = {
   barranquilla: 'Manómetro diferencial MID-WEST INSTRUMENT de carátula NEGRA con números blancos de 0 a 200 ' +
     '"INCHES OF WATER" (Δp). Números cada 20 y marcas pequeñas cada 2. La aguja principal es BLANCA y larga. ' +
@@ -1184,7 +1192,95 @@ function aplicarGeometria(ia, blob, sede) {
     if (dif > sede.escala * 0.12) { ia.confianza = 'baja'; nota += ' Diferencia grande: revisar la foto.'; }
   }
   ia.motivo = nota;
+  if (LUPA[normalizar(sede.nombre)] && t) aplicarLupa(ia, blob, sede, t);
   return ia;
+}
+
+/** Segunda mirada con la foto ampliada en la punta de la aguja: cuenta rayas desde el número más cercano. */
+function aplicarLupa(ia, blob, sede, tam) {
+  const cfg = LUPA[normalizar(sede.nombre)];
+  try {
+    const c = aPixeles(ia.centro, tam.ancho, tam.alto), p = aPixeles(ia.punta, tam.ancho, tam.alto);
+    if (!c || !p) return;
+    const r = Math.hypot(p.x - c.x, p.y - c.y);
+    if (r < Math.min(tam.ancho, tam.alto) * 0.1) return;
+    // Cuadro centrado un poco hacia adentro de la punta, de lado ~0,9 del largo de la aguja: entra la punta y el número más cercano
+    const lado = r * 0.9, k = 0.92;
+    const cx = c.x + (p.x - c.x) * k, cy = c.y + (p.y - c.y) * k;
+    const recorte = recortarFoto(blob, tam.ancho, tam.alto, cx - lado / 2, cy - lado / 2, lado);
+    if (!recorte) return;
+    const prompt =
+      'Esta imagen es un ACERCAMIENTO de un manómetro de nivel: se ve la punta de la aguja BLANCA sobre la escala.\n' +
+      'La escala tiene números cada ' + cfg.cadaNumero + ' y una raya pequeña cada ' + cfg.paso + ' pulgadas; los números crecen en sentido horario.\n' +
+      '1) "marca": el número impreso de la escala más cercano a la punta de la aguja (lee el número, por ejemplo 120).\n' +
+      '2) "rayas": cuántas rayas pequeñas hay desde la raya de ese número hasta la aguja. Positivo si la aguja está del lado de los números ' +
+      'mayores, negativo si está del lado de los menores. Usa decimales si la aguja queda entre dos rayas (por ejemplo 0.5).\n' +
+      'Responde SOLO este JSON: {"marca": número, "rayas": número, "confianza": "alta" | "media" | "baja"}';
+    const l = llamarGemini(prompt, recorte);
+    if (l.errorIA || l.marca === null || l.marca === undefined || isNaN(Number(l.marca)) || isNaN(Number(l.rayas))) return;
+    const lupa = Math.round((Number(l.marca) + Number(l.rayas) * cfg.paso) * 10) / 10;
+    if (lupa < 0 || lupa > sede.escala) return;
+    ia.lectura_lupa = lupa;
+    const dif = Math.abs(lupa - Number(ia.lectura));
+    if (dif <= LUPA_MAX_DIF) {
+      if (dif >= 0.5) ia.motivo += ' Con lupa: ' + num(lupa) + ' (el cálculo daba ' + num(ia.lectura) + ').';
+      ia.lectura = lupa;
+      ia.metodo = 'lupa';
+    } else {
+      ia.motivo += ' La lupa leía ' + num(lupa) + '; se deja el cálculo.';
+    }
+  } catch (e) {
+    Logger.log('Lupa: ' + e.message);
+  }
+}
+
+/**
+ * Recorta un cuadro de la foto (en píxeles) y lo devuelve ampliado como PNG.
+ * Apps Script no recorta imágenes: se pone la foto en una diapositiva cuadrada de una presentación
+ * de trabajo (la parte de afuera queda fuera de la hoja) y se pide su miniatura grande.
+ */
+function recortarFoto(blob, ancho, alto, x, y, lado) {
+  if (typeof Slides === 'undefined') { Logger.log('Lupa: falta activar el servicio "Google Slides API".'); return null; }
+  const props = PropertiesService.getScriptProperties();
+  let id = props.getProperty('LUPA_PRES'), pres = null;
+  if (id) { try { pres = SlidesApp.openById(id); } catch (e) { pres = null; } }
+  if (!pres) {
+    const nueva = Slides.Presentations.create({ title: 'Lupa del bot de tanques (no borrar)',
+      pageSize: { width: { magnitude: 400, unit: 'PT' }, height: { magnitude: 400, unit: 'PT' } } });
+    id = nueva.presentationId;
+    props.setProperty('LUPA_PRES', id);
+    try { DriveApp.getFileById(id).moveTo(DriveApp.getFolderById(props.getProperty('CARPETA_ID'))); } catch (e) {}
+    pres = SlidesApp.openById(id);
+  }
+  const hoja = pres.getSlides()[0];
+  hoja.getPageElements().forEach(function(e) { e.remove(); });
+  const esc = 400 / lado;
+  const img = hoja.insertImage(blob);
+  img.setLeft(-x * esc).setTop(-y * esc).setWidth(ancho * esc).setHeight(alto * esc);
+  pres.saveAndClose();
+  const th = Slides.Presentations.Pages.getThumbnail(id, hoja.getObjectId(),
+    { 'thumbnailProperties.thumbnailSize': 'LARGE', 'thumbnailProperties.mimeType': 'PNG' });
+  return UrlFetchApp.fetch(th.contentUrl).getBlob().setContentType('image/png');
+}
+
+/**
+ * Ejecútala una vez desde el editor: pide el permiso nuevo (Presentaciones) y prueba la lupa
+ * con la foto más reciente de Barranquilla. El resultado sale en el registro de ejecución. No guarda nada.
+ */
+function probarLupa() {
+  const props = PropertiesService.getScriptProperties();
+  const sede = leerSedes().filter(function(s) { return LUPA[normalizar(s.nombre)]; })[0];
+  if (!sede) return Logger.log('Ninguna sede tiene lupa.');
+  const it = DriveApp.getFolderById(props.getProperty('CARPETA_ID')).getFiles();
+  let ultimo = null;
+  while (it.hasNext()) {
+    const f = it.next();
+    if (f.getName().indexOf('Tanque_' + sede.nombre) === 0 && (!ultimo || f.getDateCreated() > ultimo.getDateCreated())) ultimo = f;
+  }
+  if (!ultimo) return Logger.log('No hay fotos de ' + sede.nombre + '.');
+  const ia = leerManometro(ultimo.getBlob(), sede);
+  Logger.log(ultimo.getName() + '\nLectura final: ' + ia.lectura + ' (método: ' + ia.metodo + ')\nLupa: ' + ia.lectura_lupa +
+    '\nEstimación IA: ' + ia.lectura_ia + '\nNota: ' + ia.motivo);
 }
 
 /** Menú: muestra qué modelo de Gemini se está usando (lo busca si hace falta). */
