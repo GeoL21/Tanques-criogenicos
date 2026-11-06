@@ -38,11 +38,15 @@ const ENC_RES = ['Sede', 'Nivel actual (pulg)', '% lleno', 'Última lectura', 'P
   'Promedio 30 días (pulg/día)', 'Última recarga', 'Pulgadas recargadas', 'Días hasta el nivel de recarga', 'Estado'];
 
 const ENC_REC = ['ID', 'Fecha y hora', 'Sede', 'Inicial (pulg)', 'Final (pulg)', 'Pulgadas recargadas', 'N.º remisión',
-  'Estado', 'Registró', 'Foto del nivel', 'IDs de mensajes del bot', 'ID de la lectura'];
+  'Estado', 'Registró', 'Foto del nivel', 'IDs de mensajes del bot', 'ID de la lectura',
+  'Fecha de la remisión', 'Presión inicial (bar)', 'Presión final (bar)', 'Foto de la remisión'];
+/** Columnas que se agregaron después de crear la tabla Recargas (se añaden solas una vez). */
+const COLS_REC_NUEVAS = { 'Fecha de la remisión': 'DATE', 'Presión inicial (bar)': 'DOUBLE', 'Presión final (bar)': 'DOUBLE', 'Foto de la remisión': 'FILES_CHIP' };
+const VERSION_COLUMNAS = '1';
 const ESTADOS_RECARGA = ['Falta remisión', 'Completa'];
 const PEDIR_REMISION = '📝 <b>Responde a este mensaje con el número de remisión de Messer.</b>';
 const HORA_RECORDATORIO = 7; // 7:00 a. m.
-const COLUMNAS_CHIP = ['Foto', 'Foto del nivel'];
+const COLUMNAS_CHIP = ['Foto', 'Foto del nivel', 'Foto de la remisión'];
 
 const MOVIMIENTOS = ['Consumo', 'Se mantuvo', 'Recarga', 'Primera lectura', 'Sin lectura'];
 const ESTADOS_LECTURA = ['Automática', 'Dudosa', 'Corregida', 'Reemplazada'];
@@ -200,7 +204,8 @@ function crearTablas(ss, lec, cfg, rec) {
   if (existentes.indexOf('Recargas') < 0) {
     const tiposRec = { 'ID': 'TEXT', 'Fecha y hora': 'DATE_TIME', 'Sede': 'DROPDOWN', 'Inicial (pulg)': 'DOUBLE', 'Final (pulg)': 'DOUBLE',
       'Pulgadas recargadas': 'DOUBLE', 'N.º remisión': 'TEXT', 'Estado': 'DROPDOWN', 'Registró': 'TEXT', 'Foto del nivel': 'FILES_CHIP',
-      'IDs de mensajes del bot': 'TEXT', 'ID de la lectura': 'TEXT' };
+      'IDs de mensajes del bot': 'TEXT', 'ID de la lectura': 'TEXT',
+      'Fecha de la remisión': 'DATE', 'Presión inicial (bar)': 'DOUBLE', 'Presión final (bar)': 'DOUBLE', 'Foto de la remisión': 'FILES_CHIP' };
     const valRec = { 'Sede': lista(['Barranquilla', 'Baranoa']), 'Estado': lista(ESTADOS_RECARGA) };
     pedidos.push({ addTable: { table: {
       name: 'Recargas',
@@ -386,6 +391,7 @@ function procesarTelegram() {
   try {
     const props = PropertiesService.getScriptProperties();
     if (props.getProperty('LISTAS_V') !== VERSION_LISTAS) actualizarListas();
+    if (props.getProperty('COLUMNAS_V') !== VERSION_COLUMNAS) agregarColumnasRecargas();
     let offset = Number(props.getProperty('OFFSET') || 0);
     const r = telegram('getUpdates', { offset: offset, timeout: 0, allowed_updates: ['message'] });
     try { reintentarPendientes(); } catch (e) { Logger.log('Reintentos: ' + e.message); }
@@ -461,6 +467,10 @@ function manejarMensaje(msg) {
 
   // Lectura con IA
   const ia = leerManometro(blob, sede);
+  if (ia && ia.es_remision === true && ia.es_manometro !== true) {
+    archivo.setName('Remision_' + sede.nombre + '_' + Utilities.formatDate(new Date(tMs), tz, 'yyyy-MM-dd_HHmm') + '.jpg');
+    return manejarFotoRemision(msg, sede, blob, archivo, tMs);
+  }
   const val = validarLectura(ia, sede);
   const aguja = val.valida ? Math.round(Number(ia.lectura) * 10) / 10 : null;
   const nivel = aguja === null ? null : Math.min(aguja, sede.capacidad);
@@ -676,6 +686,41 @@ function actualizarListas() {
   }
 }
 
+/** Agrega a la tabla Recargas las columnas nuevas (datos leídos de la remisión), una sola vez. */
+function agregarColumnasRecargas() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const h = ss.getSheetByName(HOJA_REC);
+  if (!h) return;
+  const enc = h.getRange(1, 1, 1, h.getLastColumn()).getValues()[0].map(function(t) { return String(t).trim(); });
+  const faltan = Object.keys(COLS_REC_NUEVAS).filter(function(n) { return enc.indexOf(n) < 0; });
+  if (faltan.length) {
+    let hecho = false;
+    try {
+      const info = Sheets.Spreadsheets.get(ss.getId(), { fields: 'sheets(properties(sheetId),tables(tableId,name,range,columnProperties))' });
+      info.sheets.forEach(function(sh) {
+        (sh.tables || []).forEach(function(t) {
+          if (t.name !== 'Recargas' || hecho) return;
+          const fin = t.range.endColumnIndex;
+          const cols = (t.columnProperties || []).concat(faltan.map(function(n, i) {
+            return { columnIndex: fin - t.range.startColumnIndex + i, columnName: n, columnType: COLS_REC_NUEVAS[n] };
+          }));
+          const rango = JSON.parse(JSON.stringify(t.range));
+          rango.endColumnIndex = fin + faltan.length;
+          Sheets.Spreadsheets.batchUpdate({ requests: [{ updateTable: {
+            table: { tableId: t.tableId, range: rango, columnProperties: cols }, fields: 'range,columnProperties' } }] }, ss.getId());
+          hecho = true;
+        });
+      });
+    } catch (e) {
+      Logger.log('No se pudo ampliar la tabla Recargas: ' + e.message);
+    }
+    if (!hecho) { // sin tabla: encabezados al final
+      const c = h.getLastColumn() + 1;
+      h.getRange(1, c, 1, faltan.length).setValues([faltan]);
+    }
+  }
+  PropertiesService.getScriptProperties().setProperty('COLUMNAS_V', VERSION_COLUMNAS);
+}
 
 /***********************
  * RECARGAS Y REMISIONES
@@ -778,7 +823,10 @@ function registrarRecarga(sede, a, tMs, idLectura, fotoUrl, idMensajeBot, idReem
   });
 }
 
-/** El técnico respondió a un mensaje del bot: si es de una recarga, se guarda el número de remisión. */
+/**
+ * El técnico respondió a un mensaje del bot de una recarga: se guarda el número de remisión.
+ * También acepta correcciones de lo leído en la remisión: "remisión 1001702 antes 11 después 74".
+ */
 function manejarRespuestaRemision(msg) {
   const idResp = String(msg.reply_to_message.message_id);
   const rec = leerRecargas().filter(function(r) { return r.idsBot.indexOf(idResp) >= 0; })[0];
@@ -786,16 +834,143 @@ function manejarRespuestaRemision(msg) {
   if (!esTecnico(msg.from)) {
     return responderEnTema(msg, 'Solo los técnicos que suben las fotos del tanque pueden registrar el número de remisión.');
   }
-  const m = String(msg.text).match(/\d{3,}/);
-  if (!m) return responderEnTema(msg, 'Escribe solo el número de remisión, por ejemplo <b>995292</b>.');
+  const txt = String(msg.text);
+  const nAntes = txt.match(/antes\D{0,3}(\d+(?:[.,]\d+)?)/i), nDesp = txt.match(/despu[eé]s\D{0,3}(\d+(?:[.,]\d+)?)/i);
+  const sinNiveles = txt.replace(/(antes|despu[eé]s)\D{0,3}\d+(?:[.,]\d+)?/gi, ' ');
+  const m = sinNiveles.match(/\d{3,}/);
+  if (!m && !nAntes && !nDesp) return responderEnTema(msg, 'Escribe solo el número de remisión, por ejemplo <b>995292</b>.');
   const nombre = [msg.from.first_name, msg.from.last_name].filter(Boolean).join(' ');
-  ponerEnRecarga(rec.fila, 'N.º remisión', m[0]);
+  const numero = m ? m[0] : rec.remision;
+  if (numero) {
+    ponerEnRecarga(rec.fila, 'N.º remisión', numero);
+    ponerEnRecarga(rec.fila, 'Estado', 'Completa');
+    ponerEnRecarga(rec.fila, 'Registró', nombre);
+  }
+  const aNum = function(x) { return x ? Number(x[1].replace(',', '.')) : null; };
+  let ini = aNum(nAntes), fin = aNum(nDesp);
+  if (ini !== null) ponerEnRecarga(rec.fila, 'Inicial (pulg)', ini); else ini = rec.inicial === '' ? null : Number(rec.inicial);
+  if (fin !== null) ponerEnRecarga(rec.fila, 'Final (pulg)', fin); else fin = rec.final === '' ? null : Number(rec.final);
+  const ajusteNivel = (nAntes || nDesp) && ini !== null && fin !== null;
+  if (ajusteNivel) ponerEnRecarga(rec.fila, 'Pulgadas recargadas', Math.round((fin - ini) * 10) / 10);
+  const p = partesFecha(rec.t);
+  const env = responderEnTema(msg, (numero ? '✅ Remisión <b>' + numero + '</b> registrada' : '✅ Recarga actualizada') +
+    ' para la recarga del ' + p.dia + ' ' + MESES_CORTOS[p.mes - 1] + ' en ' + rec.sede + '.' +
+    (ajusteNivel ? '\nNivel: <b>' + num(ini) + ' → ' + num(fin) + ' pulg (' + signoTxt(fin - ini) + ')</b>.' : '') +
+    '\n<i>Si te equivocaste, responde de nuevo al mensaje de la recarga con el número correcto.</i>');
+  if (env && env.ok) agregarIdBot(rec, env.result.message_id);
+}
+
+function signoTxt(n) { const r = Math.round(n * 10) / 10; return (r > 0 ? '+' : r < 0 ? '−' : '') + num(Math.abs(r)); }
+
+/** Lee con la IA los datos de una remisión de Messer (número, fecha, niveles y presiones). */
+function leerRemision(blob, sede) {
+  const prompt =
+    'La foto es una REMISIÓN de Messer (entrega de oxígeno líquido) para el tanque criogénico de la sede ' + sede.nombre + '.\n' +
+    'Lee estos datos; muchos están escritos A MANO, léelos con cuidado:\n' +
+    '- "numero": el número impreso de la remisión, arriba a la derecha junto al código de barras (ej.: 1001702).\n' +
+    '- "fecha": la fecha de entrega (casillas Día / Mes / Año), en formato AAAA-MM-DD.\n' +
+    '- "indicador_antes" e "indicador_despues": en el recuadro "Entrega por indicador", Indicador Antes e Indicador Después.\n' +
+    '- "nivel_inicial" y "nivel_final": en la tabla de abajo, columnas NIVEL INICIAL y NIVEL FINAL.\n' +
+    '- "presion_inicial", "presion_final" y "unidad_presion" (por ejemplo "bar" o "psi"): columnas PRESIÓN INICIAL, PRESIÓN FINAL y UNIDAD.\n' +
+    'Usa null en lo que no se vea o no esté escrito. No inventes números.\n' +
+    'Responde SOLO este JSON: {"es_remision": true/false, "numero": "texto o null", "fecha": "AAAA-MM-DD o null", ' +
+    '"indicador_antes": número o null, "indicador_despues": número o null, "nivel_inicial": número o null, "nivel_final": número o null, ' +
+    '"presion_inicial": número o null, "presion_final": número o null, "unidad_presion": "texto o null", ' +
+    '"confianza": "alta" | "media" | "baja", "motivo": "frase corta en español"}';
+  return llamarGemini(prompt, blob);
+}
+
+/** Convierte lo que leyó la IA de la remisión en valores listos para guardar. */
+function datosRemision(r, sede) {
+  const n = function(v) { if (v === null || v === undefined || v === '') return null; const x = Number(String(v).replace(',', '.')); return isNaN(x) ? null : x; };
+  const enEscala = function(v) { return v !== null && v >= 0 && v <= sede.escala ? v : null; };
+  const antes = enEscala(n(r.indicador_antes) !== null ? n(r.indicador_antes) : n(r.nivel_inicial));
+  const despues = enEscala(n(r.indicador_despues) !== null ? n(r.indicador_despues) : n(r.nivel_final));
+  const psi = /psi/i.test(String(r.unidad_presion || ''));
+  const bar = function(v) { v = n(v); return v === null ? null : Math.round((psi ? v / 14.504 : v) * 10) / 10; };
+  const numero = String(r.numero || '').replace(/\D/g, '');
+  let fecha = null;
+  const f = String(r.fecha || '').match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (f) fecha = new Date(Number(f[1]), Number(f[2]) - 1, Number(f[3]), 12);
+  return { numero: numero.length >= 4 ? numero : '', fecha: fecha, antes: antes,
+    despues: despues !== null && antes !== null && despues <= antes ? null : despues,
+    presIni: bar(r.presion_inicial), presFin: bar(r.presion_final), confianza: r.confianza || 'media' };
+}
+
+/** Llegó la foto de una remisión: se leen sus datos y se guardan en la recarga reciente de esa sede. */
+function manejarFotoRemision(msg, sede, blob, archivo, tMs) {
+  const cab = '🧾 <b>Remisión de Messer · ' + sede.nombre + '</b>\n';
+  const r = leerRemision(blob, sede);
+  if (r.errorIA) {
+    return responderEnTema(msg, cab + 'La IA de Google está ocupada y no pude leer la remisión. Vuelve a enviar la foto en unos minutos, ' +
+      'o responde al mensaje de la recarga con el número de remisión.');
+  }
+  const d = datosRemision(r, sede);
+  // Recarga a la que pertenece: la más reciente de la sede (hasta 2 días antes) sin remisión o con este mismo número
+  const recs = leerRecargas().filter(function(x) {
+    return normalizar(x.sede) === normalizar(sede.nombre) && x.t <= tMs + 2 * 3600000 && tMs - x.t <= 48 * 3600000 &&
+      (x.estado === 'Falta remisión' || (d.numero && x.remision === d.numero));
+  }).sort(function(a, b) { return b.t - a.t; });
+  const rec = recs[0];
+  const leido = [];
+  if (d.numero) leido.push('N.º remisión: <b>' + d.numero + '</b>' + (d.fecha ? ' · ' + d.fecha.getDate() + ' ' + MESES_CORTOS[d.fecha.getMonth()] + ' ' + d.fecha.getFullYear() : ''));
+  if (d.antes !== null || d.despues !== null) leido.push('Nivel: <b>' + (d.antes !== null ? num(d.antes) : '?') + ' → ' + (d.despues !== null ? num(d.despues) : '?') + ' pulg</b>' +
+    (d.antes !== null && d.despues !== null ? ' (' + signoTxt(d.despues - d.antes) + ')' : ''));
+  if (d.presIni !== null || d.presFin !== null) leido.push('Presión: ' + (d.presIni !== null ? num(d.presIni) : '?') + ' → ' + (d.presFin !== null ? num(d.presFin) : '?') + ' bar');
+
+  if (!rec) {
+    return responderEnTema(msg, cab + (leido.length ? leido.join('\n') + '\n' : '') +
+      '⚠️ No encontré una recarga reciente de ' + sede.nombre + ' esperando remisión.\n' +
+      '<b>Sube primero la foto del manómetro ya lleno</b> y luego vuelve a enviar la remisión.');
+  }
+  if (!d.numero) {
+    const envN = responderEnTema(msg, cab + (leido.length ? leido.join('\n') + '\n' : '') +
+      '⚠️ No pude leer el número de la remisión. Responde a este mensaje con el número, por ejemplo <b>1001702</b>.');
+    if (envN && envN.ok) agregarIdBot(rec, envN.result.message_id);
+    return envN;
+  }
+
+  const nombre = [msg.from && msg.from.first_name, msg.from && msg.from.last_name].filter(Boolean).join(' ');
+  ponerEnRecarga(rec.fila, 'N.º remisión', d.numero);
   ponerEnRecarga(rec.fila, 'Estado', 'Completa');
   ponerEnRecarga(rec.fila, 'Registró', nombre);
+  if (d.fecha) ponerEnRecarga(rec.fila, 'Fecha de la remisión', d.fecha);
+  if (d.presIni !== null) ponerEnRecarga(rec.fila, 'Presión inicial (bar)', d.presIni);
+  if (d.presFin !== null) ponerEnRecarga(rec.fila, 'Presión final (bar)', d.presFin);
+  ponerChipRecarga(rec.fila, 'Foto de la remisión', archivo.getUrl());
+
+  // El nivel de llegada de la remisión es más fiel que la última foto (el camión puede llegar horas después)
+  const finalMan = rec.final === '' || rec.final === null ? null : Number(rec.final);
+  const iniFoto = rec.inicial === '' || rec.inicial === null ? null : Number(rec.inicial);
+  const notas = [];
+  let ini = iniFoto;
+  if (d.antes !== null && finalMan !== null && d.antes < finalMan) {
+    ini = d.antes;
+    ponerEnRecarga(rec.fila, 'Inicial (pulg)', ini);
+    if (iniFoto !== null && Math.abs(iniFoto - ini) >= 0.5) notas.push('Ajusté el nivel inicial: la última foto marcaba ' + num(iniFoto) + ' y la remisión dice ' + num(ini) + '.');
+  }
+  if (ini !== null && finalMan !== null) ponerEnRecarga(rec.fila, 'Pulgadas recargadas', Math.round((finalMan - ini) * 10) / 10);
+  if (d.despues !== null && finalMan !== null && Math.abs(d.despues - finalMan) > 3) {
+    notas.push('La remisión dice ' + num(d.despues) + ' pulg después de llenar y el manómetro marcó ' + num(finalMan) + '; dejé el del manómetro.');
+  }
   const p = partesFecha(rec.t);
-  const env = responderEnTema(msg, '✅ Remisión <b>' + m[0] + '</b> registrada para la recarga del ' + p.dia + ' ' + MESES_CORTOS[p.mes - 1] +
-    ' en ' + rec.sede + '.\n<i>Si te equivocaste, responde de nuevo al mensaje de la recarga con el número correcto.</i>');
+  const env = responderEnTema(msg, cab + leido.join('\n') + '\n' +
+    '✅ La guardé en la recarga del ' + p.dia + ' ' + MESES_CORTOS[p.mes - 1] + ', ' + horaAmPm(p.hora, p.min) + ' y quedó <b>Completa</b>' +
+    (ini !== null && finalMan !== null ? ': <b>' + num(ini) + ' → ' + num(finalMan) + ' pulg (' + signoTxt(finalMan - ini) + ')</b>' : '') + '.' +
+    (notas.length ? '\n<i>' + notas.join(' ') + '</i>' : '') +
+    (d.confianza === 'baja' ? '\n⚠️ <i>La letra a mano no se veía muy clara; revisa los números.</i>' : '') +
+    '\n<i>Si leí algo mal, responde a este mensaje con lo correcto, por ejemplo: <code>remisión ' + d.numero + ' antes ' +
+    num(ini !== null ? ini : 11) + ' después ' + num(finalMan !== null ? finalMan : 74) + '</code></i>');
   if (env && env.ok) agregarIdBot(rec, env.result.message_id);
+  return env;
+}
+
+/** Pone un chip de Drive en una celda de la pestaña Recargas. */
+function ponerChipRecarga(fila, nombre, url) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet(), h = ss.getSheetByName(HOJA_REC);
+  const enc = h.getRange(1, 1, 1, h.getLastColumn()).getValues()[0].map(function(t) { return String(t).trim(); });
+  const c = enc.indexOf(nombre);
+  if (c >= 0) ponerChip(ss, h, fila, c + 1, url);
 }
 
 /** Se ejecuta a las 7:00 a. m.: avisa si falta la foto de algún tanque y recuerda las remisiones pendientes. */
@@ -893,9 +1068,6 @@ function iaEnPausa() {
 }
 
 function leerManometro(blob, sede) {
-  const props = PropertiesService.getScriptProperties();
-  let modelo = props.getProperty('GEMINI_MODELO') || props.getProperty('GEMINI_MODELO_AUTO');
-  if (!modelo) { try { modelo = listaModelos()[0]; } catch (e) { modelo = MODELO_POR_DEFECTO; } }
   const desc = DESCRIPCION_MANOMETRO[normalizar(sede.nombre)] ||
     ('Manómetro de nivel con escala de 0 a ' + sede.escala + ' pulgadas de agua.');
   const prompt =
@@ -908,10 +1080,26 @@ function leerManometro(blob, sede) {
     '3) "marcas": TODAS las marcas largas de la escala que tengan número impreso y se vean. Para cada una, su "valor" ' +
     'y el "punto" exactamente sobre la RAYA de la escala (en el anillo de rayas), no sobre el número.\n' +
     '4) "lectura": tu estimación de lo que marca (solo para comparar).\n' +
+    'Si la foto NO es un manómetro sino un documento (remisión o factura de Messer), responde solo {"es_manometro": false, "es_remision": true}.\n' +
     'Responde SOLO este JSON: {"es_manometro": true/false, "centro": [y, x], "punta": [y, x], ' +
     '"marcas": [{"valor": número, "punto": [y, x]}, ...], "lectura": número o null, ' +
     '"confianza": "alta" | "media" | "baja", "motivo": "frase corta en español"}.\n' +
     'Usa confianza "baja" si la aguja no se ve clara, hay reflejo sobre ella o no estás seguro de la escala.';
+  const ia = llamarGemini(prompt, blob);
+  if (ia.errorIA) return { es_manometro: true, lectura: null, confianza: 'baja', errorIA: true, motivo: ia.motivo };
+  if (ia.es_remision === true && ia.es_manometro !== true) return ia;
+  return aplicarGeometria(ia, blob, sede);
+}
+
+/**
+ * Envía la foto y la instrucción a Gemini y devuelve el JSON que contesta.
+ * Maneja modelo retirado (404), Google ocupado (500/503) y límite de uso (429).
+ * Si falla, devuelve { errorIA: true, motivo }.
+ */
+function llamarGemini(prompt, blob) {
+  const props = PropertiesService.getScriptProperties();
+  let modelo = props.getProperty('GEMINI_MODELO') || props.getProperty('GEMINI_MODELO_AUTO');
+  if (!modelo) { try { modelo = listaModelos()[0]; } catch (e) { modelo = MODELO_POR_DEFECTO; } }
   const cuerpo = {
     contents: [{ parts: [
       { text: prompt },
@@ -927,7 +1115,7 @@ function leerManometro(blob, sede) {
       });
     };
     if (iaEnPausa()) {
-      return { es_manometro: true, lectura: null, confianza: 'baja', errorIA: true, motivo: IA_NO_DISPONIBLE + ' (límite de uso, en pausa).' };
+      return { errorIA: true, motivo: IA_NO_DISPONIBLE + ' (límite de uso, en pausa).' };
     }
     let r = pedir(modelo);
     if (r.getResponseCode() === 404) { // el modelo ya no existe: se busca el vigente y se reintenta
@@ -954,16 +1142,15 @@ function leerManometro(blob, sede) {
     }
     if (r.getResponseCode() !== 200) {
       Logger.log('Gemini ' + modelo + ' respondió ' + r.getResponseCode() + ': ' + r.getContentText().slice(0, 500));
-      return { es_manometro: true, lectura: null, confianza: 'baja', errorIA: true,
-        motivo: IA_NO_DISPONIBLE + ' (código ' + r.getResponseCode() + ').' };
+      return { errorIA: true, motivo: IA_NO_DISPONIBLE + ' (código ' + r.getResponseCode() + ').' };
     }
     const j = JSON.parse(r.getContentText());
     const txt = j.candidates[0].content.parts.map(function(p) { return p.text || ''; }).join('');
     const ia = JSON.parse(txt.replace(/^```(json)?|```$/g, '').trim());
-    return aplicarGeometria(ia, blob, sede);
+    return ia;
   } catch (e) {
     Logger.log('Error con Gemini: ' + e.message);
-    return { es_manometro: true, lectura: null, confianza: 'baja', errorIA: true, motivo: IA_NO_DISPONIBLE + ': ' + e.message };
+    return { errorIA: true, motivo: IA_NO_DISPONIBLE + ': ' + e.message };
   }
 }
 
