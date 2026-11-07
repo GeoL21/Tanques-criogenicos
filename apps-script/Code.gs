@@ -49,8 +49,8 @@ const HORA_RECORDATORIO = 7; // 7:00 a. m.
 const COLUMNAS_CHIP = ['Foto', 'Foto del nivel', 'Foto de la remisión'];
 
 const MOVIMIENTOS = ['Consumo', 'Se mantuvo', 'Recarga', 'Primera lectura', 'Sin lectura'];
-const ESTADOS_LECTURA = ['Automática', 'Dudosa', 'Corregida', 'Reemplazada'];
-const VERSION_LISTAS = '2'; // sube cuando cambian las opciones de los desplegables
+const ESTADOS_LECTURA = ['Automática', 'Dudosa', 'Corregida', 'Reemplazada', 'Descartada'];
+const VERSION_LISTAS = '3'; // sube cuando cambian las opciones de los desplegables
 
 /** Cómo es cada manómetro, para que la IA lo lea bien. */
 /**
@@ -485,7 +485,7 @@ function manejarMensaje(msg) {
 
   // ¿Otra foto del mismo tanque hace menos de 30 min? La nueva reemplaza a la anterior.
   const repetida = lecturas.filter(function(l) {
-    return normalizar(l.sede) === normalizar(sede.nombre) && l.estado !== 'Reemplazada' &&
+    return normalizar(l.sede) === normalizar(sede.nombre) && l.estado !== 'Reemplazada' && l.estado !== 'Descartada' &&
       l.t <= tMs && tMs - l.t < REGLAS.minutosRepetida * 60000;
   }).pop() || null;
   const base = repetida ? lecturas.filter(function(l) { return l !== repetida; }) : lecturas;
@@ -614,7 +614,7 @@ function manejarCorregir(msg, sedeTema, argumento) {
   }
   if (!l) {
     if (!sedeTema) return responderEnTema(msg, 'Escribe <b>/corregir</b> dentro del tema del tanque, o respondiendo al reporte del bot.');
-    l = lecturas.filter(function(x) { return normalizar(x.sede) === normalizar(sedeTema.nombre) && x.estado !== 'Reemplazada'; }).pop() || null;
+    l = lecturas.filter(function(x) { return normalizar(x.sede) === normalizar(sedeTema.nombre) && x.estado !== 'Reemplazada' && x.estado !== 'Descartada'; }).pop() || null;
     porUltima = true;
     if (!l) return responderEnTema(msg, 'Aún no hay lecturas del tanque ' + sedeTema.nombre + ' para corregir.');
   }
@@ -1516,6 +1516,11 @@ function doPost(e) {
     if (d.accion === 'validar') return json({ ok: true });
     if (d.accion === 'datos') return json(datosTablero(Number(d.dias) || 60));
     if (d.accion === 'foto') return json(fotoTablero(String(d.id || ''), d.tam === 'mini'));
+    // Administrador con huella
+    const adm = { huellaEstado: function() { return { ok: true, nombre: huellaRegistrada_(d.credId) }; },
+      huellaReto: function() { return reto_(d); }, huellaRegistrar: function() { return registrarHuellaAdmin_(d); },
+      descartar: function() { return descartarLectura(d); }, restaurar: function() { return restaurarLectura(String(d.token || '')); } };
+    if (adm[d.accion]) { try { return json(adm[d.accion]()); } catch (x) { return json({ ok: false, error: String(x.message || x) }); } }
     return json({ ok: false, error: 'Acción desconocida.' });
   } catch (err) {
     return json({ ok: false, error: 'Error en el servidor: ' + err.message });
@@ -1542,6 +1547,48 @@ function fotoTablero(id, mini) {
   return { ok: true, tipo: b.getContentType() || 'image/jpeg', datos: Utilities.base64Encode(b.getBytes()) };
 }
 
+/**
+ * Descarta una lectura dudosa desde el tablero. Solo el administrador, con su huella:
+ * el reto se pidió para "descartar:<ID>" y la firma se comprueba aquí.
+ * La fila no se borra: queda como "Descartada" (no se ve en el tablero) y la foto sigue en Drive.
+ */
+function descartarLectura(d) {
+  const id = String(d.id || '');
+  const v = verificar_(d); // lanza error si la huella no es válida o el reto venció
+  if (v.para !== 'descartar:' + id) throw new Error('La huella se pidió para otra lectura.');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    if (PropertiesService.getScriptProperties().getProperty('LISTAS_V') !== VERSION_LISTAS) actualizarListas();
+    const l = leerLecturas().filter(function(x) { return x.id === id; })[0];
+    if (!l) throw new Error('No encontré esa lectura.');
+    if (l.estado !== 'Dudosa') throw new Error('Solo se pueden borrar lecturas dudosas.');
+    const notaAntes = l.nota;
+    const p = partesFecha(Date.now());
+    ponerEn(HOJA_LEC, l.fila, 'Lectura', 'Descartada');
+    ponerEn(HOJA_LEC, l.fila, 'Nota de la lectura', 'Descartada desde el tablero por ' + v.nombre + ' el ' + p.dia + ' ' +
+      MESES_CORTOS[p.mes - 1] + ', ' + horaAmPm(p.hora, p.min) + (notaAntes ? ' · ' + notaAntes : ''));
+    const token = Utilities.getUuid();
+    CacheService.getScriptCache().put('DESHACER_' + token, JSON.stringify({ id: id, nota: notaAntes }), 300);
+    return { ok: true, token: token, nombre: v.nombre };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** "Deshacer" justo después de descartar (sirve 5 minutos, sin volver a pedir la huella). */
+function restaurarLectura(token) {
+  const c = CacheService.getScriptCache(), g = c.get('DESHACER_' + token);
+  if (!g) throw new Error('Ya no se puede deshacer.');
+  c.remove('DESHACER_' + token);
+  const x = JSON.parse(g);
+  const l = leerLecturas().filter(function(y) { return y.id === x.id; })[0];
+  if (!l) throw new Error('No encontré esa lectura.');
+  ponerEn(HOJA_LEC, l.fila, 'Lectura', 'Dudosa');
+  ponerEn(HOJA_LEC, l.fila, 'Nota de la lectura', x.nota || '');
+  return { ok: true };
+}
+
 function json(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -1557,8 +1604,8 @@ function datosTablero(dias) {
       return { t: r.t, sede: r.sede, inicial: r.inicial === '' ? null : Number(r.inicial), final: r.final === '' ? null : Number(r.final),
         cambio: r.cambio === '' ? null : Number(r.cambio), remision: r.remision, estado: r.estado, registro: r.registro };
     }),
-    lecturas: lecturas.filter(function(l) { return l.t >= desde; }).map(function(l) {
-      return { t: l.t, sede: l.sede, nivel: l.nivel, pct: l.pct, cambio: l.cambio, mov: l.movimiento, porDia: l.porDia,
+    lecturas: lecturas.filter(function(l) { return l.t >= desde && l.estado !== 'Descartada'; }).map(function(l) {
+      return { id: l.id, t: l.t, sede: l.sede, nivel: l.nivel, pct: l.pct, cambio: l.cambio, mov: l.movimiento, porDia: l.porDia,
         estado: l.estado, tecnico: l.tecnico, nota: l.nota,
         foto: l.fotoId ? 'https://drive.google.com/file/d/' + l.fotoId + '/view' : '' };
     })

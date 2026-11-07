@@ -224,6 +224,27 @@ button.foto:hover{background:var(--vino);color:#fff}button.foto:active{backgroun
  .vteclas{margin-top:auto;padding-top:14px;font-size:12px;color:#8a7680}
 }
 
+/* ---------- Administrador: borrar fotos dudosas con huella ---------- */
+.bote{width:40px;height:40px;flex:none;border-radius:50%;border:1.5px solid #F3C9C4;background:#fff;color:var(--mal);display:inline-grid;place-items:center;margin-right:6px;vertical-align:middle;transition:transform 150ms var(--ease-out)}
+.bote svg{width:18px;height:18px}.bote:active{transform:scale(.94)}
+.admlink{display:flex;align-items:center;justify-content:center;gap:6px;margin:4px auto 0;background:none;border:0;color:#9a8790;font:inherit;font-size:13px;font-weight:600;padding:12px;min-height:44px}
+.admlink svg{width:17px;height:17px}.admlink.on{color:var(--vino)}
+.modal .box.izq{text-align:left}.modal .box .ic{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;margin:0 auto 8px}
+.modal .box .ic svg{width:26px;height:26px}.ic.rojo{background:var(--malf);color:var(--mal)}.ic.vino{background:var(--rosa);color:var(--vino)}
+.mfoto{display:flex;gap:10px;text-align:left;background:#FBF8F9;border:1px solid var(--borde);border-radius:14px;padding:8px;margin:12px 0 8px}
+.mfoto img{width:58px;height:58px;object-fit:cover;border-radius:10px;margin:0;background:#EFE6EA;flex:none}
+.mfoto b{display:block;font-size:14px}.mfoto small{display:block;font-size:12.5px;color:var(--sec);line-height:1.4}
+.bts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.bts button{min-height:48px;border-radius:12px;font:inherit;font-weight:800;font-size:15px}
+.bts .no{border:1.5px solid var(--vino);background:#fff;color:var(--vino)}.bts .si{border:0;background:var(--mal);color:#fff;display:flex;gap:8px;align-items:center;justify-content:center}.bts .si svg{width:20px;height:20px}
+.bts button:disabled{opacity:.6}
+.modal label{display:block;text-align:left;font-size:13px;font-weight:700;color:#5b4650;margin-top:12px}
+.modal label+input{margin-top:6px;text-align:left}
+.aviso{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:35;background:#26181D;color:#fff;border-radius:14px;padding:12px 14px 12px 18px;font-weight:700;font-size:14.5px;display:flex;gap:16px;align-items:center;box-shadow:0 6px 18px rgba(0,0,0,.25);width:min(92vw,420px);justify-content:space-between;animation:avisoE 260ms var(--ease-out)}
+.aviso[hidden]{display:none}.aviso button{background:none;border:0;color:#FFB0C8;font:inherit;font-weight:800;padding:8px 6px;min-height:40px}
+@keyframes avisoE{from{opacity:0;transform:translate(-50%,16px)}}
+@media (min-width:1024px){.aviso{bottom:24px}}
+@media (prefers-reduced-motion:reduce){.aviso{animation:none}}
+
 /* ---------- PC: desde 1024 px ---------- */
 @media (min-width:1024px){
  body{padding-bottom:0;padding-left:220px}
@@ -260,6 +281,7 @@ button.foto:hover{background:var(--vino);color:#fff}button.foto:active{backgroun
 <div id="vResumen" class="wrap">
  <div class="top" id="topR"></div>
  <div class="mid"><div id="grafR"></div><div class="card" id="ultR"></div></div>
+ <button class="admlink" id="admLink" onclick="abrirAdmin()"></button>
 </div>
 <div id="vLecturas" class="wrap" style="display:none">
  <div class="seg" id="segL"></div>
@@ -284,6 +306,14 @@ button.foto:hover{background:var(--vino);color:#fff}button.foto:active{backgroun
  <input id="codigo" autocomplete="off" inputmode="text" aria-label="Código de acceso">
  <button class="go" onclick="entrar()">Entrar</button><div class="err" id="ingErr" role="alert"></div></div></div>
 
+<div class="modal" id="adm" role="dialog" aria-modal="true" aria-labelledby="admT"><div class="box" id="admBox"></div></div>
+<div class="modal" id="borra" role="dialog" aria-modal="true" aria-labelledby="borraT"><div class="box">
+ <div class="ic rojo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3h6v3"/></svg></div><h3 id="borraT">¿Borrar esta foto dudosa?</h3>
+ <div class="mfoto"><img id="bFoto" alt=""><div><b id="bTit"></b><small id="bSub"></small></div></div>
+ <p>Deja de verse en la app y no cuenta en los cálculos. En la hoja queda marcada como <b>Descartada</b> por si la necesitas después.</p>
+ <div class="bts"><button class="no" onclick="cerrarBorra()">Cancelar</button><button class="si" id="bSi" onclick="confirmarBorra()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18.9 7a8 8 0 0 1 1.1 4v1a10 10 0 0 0 2 6"/><path d="M4 11a8 8 0 0 1 12-6.9"/><path d="M8 11a4 4 0 0 1 8 0v1a10 10 0 0 0 2 6"/><path d="M12 11v2a14 14 0 0 0 2.5 8"/><path d="M8 15a18 18 0 0 0 1.8 6"/><path d="M4.9 19a22 22 0 0 1-.9-7v-1"/></svg>Sí, borrar</button></div>
+ <div class="err" id="bErr" role="alert"></div></div></div>
+<div class="aviso" id="aviso" role="status" hidden><span id="avisoTx"></span><button id="avisoBtn">Deshacer</button></div>
 <div class="visor" id="visor" role="dialog" aria-modal="true" aria-label="Foto del manómetro" hidden><div class="vcaja">
  <div class="vimg" id="vImg">
   <div class="vtop"><button class="vx" id="vX" aria-label="Cerrar foto" onclick="cerrarFoto()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg></button><div class="vtt"><b id="vSede"></b><small id="vFecha"></small></div><span class="vcont" id="vCont"></span></div>
@@ -496,8 +526,73 @@ function etiqueta(l){if(l.estado==='Dudosa')return '<span class="tag Dudosa">Dud
  if(l.mov==='Recarga')return '<span class="tag rc">↑ Recarga</span>';
  const c=l.mov==='Consumo'?'Consumo':'mant';return `<span class="tag ${c}">${esc(l.mov||'—')}</span>`;}
 function idFoto(l){const m=/\/d\/([\w-]{20,})/.exec(l.foto||'');return m?m[1]:'';}
-function linkFoto(l){const id=idFoto(l);return id?`<button class="foto" onclick="abrirFoto('${id}',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2"/><path d="M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></svg>Ver foto</button>`:'';}
+function linkFoto(l){const id=idFoto(l);return botonBorrar(l)+(id?`<button class="foto" onclick="abrirFoto('${id}',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2"/><path d="M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/></svg>Ver foto</button>`:'');}
 
+/* ---------- Administrador con huella: borrar lecturas dudosas ---------- */
+const b64u=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const deB64u=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')+'==='.slice((s.length+3)%4)),c=>c.charCodeAt(0));
+const ADM={cred:ls.get('admCred',''),nombre:ls.get('admNombre',''),borrar:null};
+const HUELLA_SVG=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18.9 7a8 8 0 0 1 1.1 4v1a10 10 0 0 0 2 6"/><path d="M4 11a8 8 0 0 1 12-6.9"/><path d="M8 11a4 4 0 0 1 8 0v1a10 10 0 0 0 2 6"/><path d="M12 11v2a14 14 0 0 0 2.5 8"/><path d="M8 15a18 18 0 0 0 1.8 6"/><path d="M4.9 19a22 22 0 0 1-.9-7v-1"/></svg>`;
+function botonBorrar(l){return ADM.cred&&l.estado==='Dudosa'&&l.id?`<button class="bote" aria-label="Borrar foto dudosa" onclick="pedirBorrar('${esc(l.id)}',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3h6v3"/></svg></button>`:'';}
+function pintarAdmLink(){const b=$('admLink');if(!b)return;b.className='admlink'+(ADM.cred?' on':'');b.innerHTML=HUELLA_SVG+(ADM.cred?'Administrador: '+esc(ADM.nombre):'Modo administrador');}
+function abrirAdmin(){
+ const box=$('admBox');
+ if(ADM.cred){box.innerHTML=`<div class="ic vino">${HUELLA_SVG}</div><h3 id="admT">Modo administrador</h3><p>Huella registrada en este equipo para <b>${esc(ADM.nombre)}</b>. Puedes borrar fotos dudosas.</p>
+  <div class="bts"><button class="no" onclick="quitarAdmin()">Quitar de este equipo</button><button class="go" style="margin:0" onclick="$('adm').style.display='none'">Listo</button></div>`;}
+ else{box.innerHTML=`<div class="ic vino">${HUELLA_SVG}</div><h3 id="admT">Modo administrador</h3><p>Registra tu huella en este equipo. Solo se hace una vez y te pide el código de administrador.</p>
+  <label for="admNom">Tu nombre</label><input id="admNom" autocomplete="off" value="${esc(ls.get('admNombre',''))}">
+  <label for="admCod">Código de administrador</label><input id="admCod" type="password" autocomplete="off">
+  <button class="go" id="admGo" onclick="registrarAdmin()">Registrar huella</button>
+  <button class="go" style="background:#fff;color:var(--vino);border:1.5px solid var(--vino)" onclick="$('adm').style.display='none'">Cancelar</button><div class="err" id="admErr" role="alert"></div>`;}
+ $('adm').style.display='flex';
+}
+function quitarAdmin(){ADM.cred='';ls.set('admCred','');$('adm').style.display='none';pintarAdmLink();pintar();}
+async function registrarAdmin(){
+ const nom=$('admNom').value.trim(),cod=$('admCod').value.trim(),err=$('admErr'),btn=$('admGo');
+ if(!nom||!cod){err.textContent='Escribe tu nombre y el código.';return;}
+ if(!window.PublicKeyCredential){err.textContent='Este navegador no permite huella. Usa Chrome actualizado.';return;}
+ btn.disabled=true;err.textContent='Pon tu dedo cuando el equipo lo pida…';
+ try{
+  const r=await api('huellaReto',{para:'registro'});
+  const c=await navigator.credentials.create({publicKey:{challenge:deB64u(r.reto),rp:{id:location.hostname,name:'Clínica Reina Catalina'},
+   user:{id:crypto.getRandomValues(new Uint8Array(16)),name:nom,displayName:nom},pubKeyCredParams:[{type:'public-key',alg:-7}],
+   authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'preferred'},timeout:60000,attestation:'none'}});
+  if(!c.response.getPublicKey)throw new Error('Este navegador no entrega la llave. Actualiza Chrome.');
+  const out=await api('huellaRegistrar',{codigoAdmin:cod,retoId:r.id,nombre:nom,credId:c.id,alg:c.response.getPublicKeyAlgorithm(),spki:b64u(c.response.getPublicKey()),clientDataJSON:b64u(c.response.clientDataJSON)});
+  ADM.cred=c.id;ADM.nombre=out.nombre;ls.set('admCred',c.id);ls.set('admNombre',out.nombre);
+  $('adm').style.display='none';pintarAdmLink();pintar();mostrarAviso('Huella registrada. Ya puedes borrar fotos dudosas.');
+ }catch(e){err.textContent=e.name==='NotAllowedError'?'Se canceló o no se reconoció la huella.':(e.red?'Sin conexión.':e.message);}
+ finally{btn.disabled=false;}
+}
+function pedirBorrar(id,btn){
+ const l=D.lecturas.find(x=>x.id===id);if(!l)return;ADM.borrar={l,btn};
+ $('bTit').textContent=l.sede+' · '+diaLargo(l.t).toLowerCase()+', '+hora(l.t);
+ $('bSub').innerHTML='Subió: '+esc(l.tecnico||'—')+' · Dudosa'+(l.nota?'<br><i>"'+esc(l.nota)+'"</i>':'');
+ $('bErr').textContent='';$('bFoto').removeAttribute('src');$('bSi').disabled=false;
+ $('borra').style.display='flex';setTimeout(()=>$('bSi').focus(),50);
+ const fid=idFoto(l);if(fid)traerFoto(fid,'mini').then(u=>{if(u&&ADM.borrar&&ADM.borrar.l===l)$('bFoto').src=u;}).catch(()=>{});
+}
+function cerrarBorra(){$('borra').style.display='none';if(ADM.borrar&&ADM.borrar.btn&&document.contains(ADM.borrar.btn))ADM.borrar.btn.focus();ADM.borrar=null;}
+async function confirmarBorra(){
+ const b=ADM.borrar;if(!b)return;const btn=$('bSi'),err=$('bErr');btn.disabled=true;err.textContent='Pon tu dedo para confirmar…';
+ try{
+  const r=await api('huellaReto',{para:'descartar:'+b.l.id});
+  const a=await navigator.credentials.get({publicKey:{challenge:deB64u(r.reto),rpId:location.hostname,allowCredentials:[{type:'public-key',id:deB64u(ADM.cred)}],userVerification:'required',timeout:60000}});
+  const out=await api('descartar',{id:b.l.id,retoId:r.id,credId:a.id,authenticatorData:b64u(a.response.authenticatorData),clientDataJSON:b64u(a.response.clientDataJSON),signature:b64u(a.response.signature)});
+  const i=D.lecturas.indexOf(b.l);if(i>=0)D.lecturas.splice(i,1);ls.set('datos',D);
+  ADM.borrar=null;$('borra').style.display='none';pintar();
+  mostrarAviso('Foto borrada',async()=>{try{await api('restaurar',{token:out.token});D.lecturas.splice(Math.max(0,i),0,b.l);ls.set('datos',D);pintar();mostrarAviso('Se recuperó la foto.');}catch(e){mostrarAviso(e.red?'Sin conexión: no se pudo deshacer.':e.message);}});
+ }catch(e){btn.disabled=false;
+  if(/no está registrada/i.test(e.message||'')){ADM.cred='';ls.set('admCred','');pintarAdmLink();pintar();}
+  err.textContent=e.name==='NotAllowedError'?'Se canceló o no se reconoció la huella.':(e.red?'Sin conexión. Intenta cuando tengas señal.':e.message);}
+}
+let avisoT=0;
+function mostrarAviso(t,deshacer){const a=$('aviso'),btn=$('avisoBtn');$('avisoTx').textContent=t;btn.hidden=!deshacer;btn.onclick=()=>{a.hidden=true;clearTimeout(avisoT);deshacer();};
+ a.hidden=false;clearTimeout(avisoT);avisoT=setTimeout(()=>{a.hidden=true;},deshacer?8000:4000);}
+addEventListener('keydown',e=>{if(e.key==='Escape'&&$('borra').style.display==='flex')cerrarBorra();});
+// Si la huella se quitó del servidor, el bote deja de aparecer
+if(ADM.cred&&!DEMO)setTimeout(()=>api('huellaEstado',{credId:ADM.cred}).then(j=>{if(!j.nombre){ADM.cred='';ls.set('admCred','');pintarAdmLink();pintar();}}).catch(()=>{}),3000);
+pintarAdmLink();
 /* ---------- Visor de fotos: el servidor entrega la foto con el código del tablero ---------- */
 const V={lista:[],i:0,abierto:false,origen:null,tok:0},memo=new Map(),CACHE_FOTOS='tanques-fotos';
 function fotosDe(s){return D.lecturas.filter(l=>l.sede===s&&idFoto(l)).sort((a,b)=>a.t-b.t);}
