@@ -582,8 +582,8 @@ function pintarLecturas(){
  const L=lecturasDe(sede);$('cntL').textContent=L.length+' en 60 días';
  if(!L.length){$('lstL').innerHTML='<div class="vacio">Aún no hay lecturas de '+esc(sede)+'.</div>';return;}
  if(window.matchMedia('(min-width:1024px)').matches){
-  $('lstL').innerHTML=`<div class="tw"><table><thead><tr><th>Fecha y hora</th><th>Nivel (pulg)</th><th>% lleno</th><th>Cambio</th><th>Movimiento</th><th>Consumo por día</th><th>Técnico</th><th>Nota</th><th>Foto</th></tr></thead><tbody>`+
-  L.map(l=>`<tr${l.mov==='Recarga'&&l.estado!=='Dudosa'&&l.estado!=='Reemplazada'?' class="recarga"':''}><td>${diaLargo(l.t)}, ${hora(l.t)}</td><td class="n">${l.estado==='Dudosa'?'—':num(l.nivel)}</td><td class="n">${l.pct!=null&&l.estado!=='Dudosa'?l.pct+' %':'—'}</td><td class="n">${l.estado==='Dudosa'?'—':signo(l.cambio)}</td><td>${etiqueta(l)}</td><td class="n">${l.porDia!=null?signo(l.porDia):'—'}</td><td>${esc(l.tecnico)}</td><td style="max-width:260px;font-size:12.5px;color:var(--sec)">${esc(l.nota)}</td><td>${linkFoto(l)}</td></tr>`).join('')+'</tbody></table></div>';
+  $('lstL').innerHTML=`<div class="tw"><table class="cen"><thead><tr><th>Fecha y hora</th><th>Nivel (pulg)</th><th>% lleno</th><th>Cambio</th><th>Movimiento</th><th>Consumo por día</th><th>Técnico</th><th style="text-align:left">Nota</th><th>Foto</th></tr></thead><tbody>`+
+  L.map(l=>`<tr${l.mov==='Recarga'&&l.estado!=='Dudosa'&&l.estado!=='Reemplazada'?' class="recarga"':''}><td>${diaLargo(l.t)}, ${hora(l.t)}</td><td class="n">${l.estado==='Dudosa'?'—':num(l.nivel)}</td><td class="n">${l.pct!=null&&l.estado!=='Dudosa'?l.pct+' %':'—'}</td><td class="n">${l.estado==='Dudosa'?'—':signo(l.cambio)}</td><td>${etiqueta(l)}</td><td class="n">${l.porDia!=null?signo(l.porDia):'—'}</td><td>${esc(l.tecnico)}</td><td style="max-width:260px;font-size:12.5px;color:var(--sec);text-align:left">${esc(l.nota)}</td><td>${linkFoto(l)}</td></tr>`).join('')+'</tbody></table></div>';
   return;}
  let dia='',h='';
  L.forEach(l=>{const d=diaLargo(l.t);if(d!==dia){dia=d;h+=`<div style="font-size:12.5px;font-weight:700;color:var(--sec);margin:12px 0 2px">${d}</div>`;}
