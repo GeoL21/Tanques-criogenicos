@@ -76,6 +76,7 @@ table{width:100%;border-collapse:collapse;font-size:13.5px}
 th{text-align:left;font-size:12.5px;color:var(--sec);font-weight:700;padding:8px;border-bottom:1.5px solid var(--borde);white-space:nowrap}
 td{padding:9px 8px;border-bottom:1px solid #F1E8EC;vertical-align:middle}
 td.n{text-align:right;font-variant-numeric:tabular-nums}
+table.cen th,table.cen td,table.cen td.n{text-align:center}table.cen th:first-child,table.cen td:first-child{text-align:left}
 .tw{overflow-x:auto}
 nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(3,1fr);background:#fff;border-top:1px solid var(--borde);padding-bottom:env(safe-area-inset-bottom);z-index:6}
 nav button{border:0;background:none;font-weight:700;font-size:12.5px;padding:8px 6px 10px;color:#7a6670;display:flex;flex-direction:column;align-items:center;gap:3px}
@@ -601,7 +602,7 @@ function pintarRecargas(){
  if(!R.length){$('lstRc').innerHTML='<div class="vacio">No se han detectado recargas de '+esc(sede)+' en los últimos 60 días.</div>';return;}
  const est=r=>r.estado==='Falta remisión'?'<span class="tag Dudosa">Falta remisión</span>':r.estado==='Completa'?'<span class="tag Recarga">Completa</span>':'';
  if(window.matchMedia('(min-width:1024px)').matches){
-  $('lstRc').innerHTML=`<div class="tw"><table><thead><tr><th>Fecha y hora</th><th>Inicial</th><th>Final</th><th>Recargado</th><th>N.º remisión</th><th>Estado</th><th>Registró</th></tr></thead><tbody>`+
+  $('lstRc').innerHTML=`<div class="tw"><table class="cen"><thead><tr><th>Fecha y hora</th><th>Inicial</th><th>Final</th><th>Recargado</th><th>N.º remisión</th><th>Estado</th><th>Registró</th></tr></thead><tbody>`+
   R.map(r=>`<tr><td>${diaLargo(r.t)}, ${hora(r.t)}</td><td class="n">${num(r.inicial)}</td><td class="n">${num(r.final)}</td><td class="n">${signo(r.cambio)}</td><td>${r.remision?'<b>'+esc(r.remision)+'</b>':'—'}</td><td>${est(r)}</td><td>${esc(r.registro||'—')}</td></tr>`).join('')+'</tbody></table></div>';
   return;}
  $('lstRc').innerHTML=R.map(r=>`<div class="li"><div class="tx"><b>${diaLargo(r.t)}, ${hora(r.t)} ${est(r)}</b><small>${num(r.inicial)} → ${num(r.final)} pulg · <b style="display:inline;color:#22694B">${signo(r.cambio)} pulg</b></small><small>${r.remision?'Remisión <b style="display:inline">'+esc(r.remision)+'</b> · registró '+esc(r.registro||'—'):'Falta que un técnico responda en Telegram con el número de remisión.'}</small></div></div>`).join('');
