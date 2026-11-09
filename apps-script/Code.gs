@@ -39,10 +39,14 @@ const ENC_RES = ['Sede', 'Nivel actual (pulg)', '% lleno', 'Última lectura', 'P
 
 const ENC_REC = ['ID', 'Fecha y hora', 'Sede', 'Inicial (pulg)', 'Final (pulg)', 'Pulgadas recargadas', 'N.º remisión',
   'Estado', 'Registró', 'Foto del nivel', 'IDs de mensajes del bot', 'ID de la lectura',
-  'Fecha de la remisión', 'Presión inicial (bar)', 'Presión final (bar)', 'Foto de la remisión'];
+  'Fecha de la remisión', 'Presión inicial (bar)', 'Presión final (bar)', 'Foto de la remisión',
+  'm³ por tabla', 'Precio por m³', 'Costo estimado', 'N.º factura', 'm³ facturados', 'Costo facturado'];
 /** Columnas que se agregaron después de crear la tabla Recargas (se añaden solas una vez). */
-const COLS_REC_NUEVAS = { 'Fecha de la remisión': 'DATE', 'Presión inicial (bar)': 'DOUBLE', 'Presión final (bar)': 'DOUBLE', 'Foto de la remisión': 'FILES_CHIP' };
-const VERSION_COLUMNAS = '1';
+const COLS_REC_NUEVAS = { 'Fecha de la remisión': 'DATE', 'Presión inicial (bar)': 'DOUBLE', 'Presión final (bar)': 'DOUBLE', 'Foto de la remisión': 'FILES_CHIP',
+  // Costos (ver Costos.gs)
+  'm³ por tabla': 'DOUBLE', 'Precio por m³': 'CURRENCY', 'Costo estimado': 'CURRENCY',
+  'N.º factura': 'TEXT', 'm³ facturados': 'DOUBLE', 'Costo facturado': 'CURRENCY' };
+const VERSION_COLUMNAS = '2';
 const ESTADOS_RECARGA = ['Falta remisión', 'Completa'];
 const PEDIR_REMISION = '📝 <b>Responde a este mensaje con el número de remisión de Messer.</b>';
 const HORA_RECORDATORIO = 7; // 7:00 a. m.
@@ -118,6 +122,7 @@ function configurar() {
 
   // Tablas (con tipos de columna)
   crearTablas(ss, lec, cfg, rec);
+  hojaPrecios();
   fechasEnEspanol(ss);
 
   // Formato del resumen (sin tabla)
@@ -213,7 +218,9 @@ function crearTablas(ss, lec, cfg, rec) {
     const tiposRec = { 'ID': 'TEXT', 'Fecha y hora': 'DATE_TIME', 'Sede': 'DROPDOWN', 'Inicial (pulg)': 'DOUBLE', 'Final (pulg)': 'DOUBLE',
       'Pulgadas recargadas': 'DOUBLE', 'N.º remisión': 'TEXT', 'Estado': 'DROPDOWN', 'Registró': 'TEXT', 'Foto del nivel': 'FILES_CHIP',
       'IDs de mensajes del bot': 'TEXT', 'ID de la lectura': 'TEXT',
-      'Fecha de la remisión': 'DATE', 'Presión inicial (bar)': 'DOUBLE', 'Presión final (bar)': 'DOUBLE', 'Foto de la remisión': 'FILES_CHIP' };
+      'Fecha de la remisión': 'DATE', 'Presión inicial (bar)': 'DOUBLE', 'Presión final (bar)': 'DOUBLE', 'Foto de la remisión': 'FILES_CHIP',
+      'm³ por tabla': 'DOUBLE', 'Precio por m³': 'CURRENCY', 'Costo estimado': 'CURRENCY',
+      'N.º factura': 'TEXT', 'm³ facturados': 'DOUBLE', 'Costo facturado': 'CURRENCY' };
     const valRec = { 'Sede': lista(['Barranquilla', 'Baranoa']), 'Estado': lista(ESTADOS_RECARGA) };
     pedidos.push({ addTable: { table: {
       name: 'Recargas',
@@ -403,6 +410,7 @@ function procesarTelegram() {
     let offset = Number(props.getProperty('OFFSET') || 0);
     const r = telegram('getUpdates', { offset: offset, timeout: 0, allowed_updates: ['message'] });
     try { reintentarPendientes(); } catch (e) { Logger.log('Reintentos: ' + e.message); }
+    try { sincronizarCostos(); } catch (e) { Logger.log('Costos: ' + e.message); }
     if (!r.ok || !r.result.length) return;
     r.result.forEach(function(u) {
       offset = u.update_id + 1;
@@ -1519,7 +1527,8 @@ function doPost(e) {
     // Administrador con huella
     const adm = { huellaEstado: function() { return { ok: true, nombre: huellaRegistrada_(d.credId) }; },
       huellaReto: function() { return reto_(d); }, huellaRegistrar: function() { return registrarHuellaAdmin_(d); },
-      descartar: function() { return descartarLectura(d); }, restaurar: function() { return restaurarLectura(String(d.token || '')); } };
+      descartar: function() { return descartarLectura(d); }, restaurar: function() { return restaurarLectura(String(d.token || '')); },
+      factura: function() { return guardarFactura(d); }, precios: function() { return guardarPrecios(d); } };
     if (adm[d.accion]) { try { return json(adm[d.accion]()); } catch (x) { return json({ ok: false, error: String(x.message || x) }); } }
     return json({ ok: false, error: 'Acción desconocida.' });
   } catch (err) {
@@ -1600,6 +1609,7 @@ function datosTablero(dias) {
     ok: true,
     generado: Date.now(),
     sedes: leerSedes().map(function(s) { return resumenSede(s, lecturas); }),
+    costos: costosTablero(),
     recargas: leerRecargas().filter(function(r) { return r.t >= desde; }).map(function(r) {
       return { t: r.t, sede: r.sede, inicial: r.inicial === '' ? null : Number(r.inicial), final: r.final === '' ? null : Number(r.final),
         cambio: r.cambio === '' ? null : Number(r.cambio), remision: r.remision, estado: r.estado, registro: r.registro };

@@ -81,7 +81,7 @@ td{padding:9px 8px;border-bottom:1px solid #F1E8EC;vertical-align:middle}
 td.n{text-align:right;font-variant-numeric:tabular-nums}
 table.cen th,table.cen td,table.cen td.n{text-align:center}table.cen th:first-child,table.cen td:first-child{text-align:left}
 .tw{overflow-x:auto}
-nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(3,1fr);background:#fff;border-top:1px solid var(--borde);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-top:1px solid var(--borde);padding-bottom:env(safe-area-inset-bottom);z-index:6}
 nav button{border:0;background:none;font-weight:700;font-size:12.5px;padding:8px 6px 10px;color:#7a6670;display:flex;flex-direction:column;align-items:center;gap:3px}
 nav button svg{width:21px;height:21px}
 nav button.on{color:var(--vino);box-shadow:inset 0 3px 0 var(--vino)}
@@ -109,6 +109,40 @@ nav button.on{color:var(--vino);box-shadow:inset 0 3px 0 var(--vino)}
 .inst .go{display:block;width:100%;margin-top:10px;min-height:46px;border:0;border-radius:12px;background:var(--vino);color:#fff;font-weight:700;font-size:15px}
 .inst p{margin:10px 0 0;font-size:13.5px;line-height:1.45;color:var(--txt)}
 nav .ninst{display:none}
+
+/* Costos */
+.mesb{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.mesb b{font-size:17px;font-weight:800;color:var(--vino)}
+.mesb button{width:44px;height:44px;border:1.5px solid var(--borde);border-radius:12px;background:#fff;color:var(--vino);display:grid;place-items:center}
+.mesb button:disabled{opacity:.35}
+.mesb svg{width:20px;height:20px}
+.gastos{display:grid;gap:10px;margin-bottom:12px}
+@media (min-width:700px){.gastos{grid-template-columns:1fr 1fr}}
+.gasto{margin:0}
+.gasto .sd{display:flex;justify-content:space-between;gap:8px;font-size:14px;font-weight:700;flex-wrap:wrap}
+.gasto .sd small{font-size:12.5px;font-weight:700}
+.gasto .vl{font-size:30px;font-weight:800;color:var(--vino);letter-spacing:-.01em;margin:4px 0 2px;font-variant-numeric:tabular-nums}
+.gasto .br{height:10px;border-radius:6px;background:var(--rosa);overflow:hidden;margin:8px 0 6px}
+.gasto .br i{display:block;height:100%;border-radius:6px;background:var(--ok)}
+.gasto .ds{font-size:12.5px;color:var(--sec);line-height:1.45}
+.gasto.pasa{background:var(--malf);border:2px solid var(--mal)}.gasto.pasa .vl,.gasto.pasa .sd small{color:var(--mal)}.gasto.pasa .br{background:#fff}.gasto.pasa .br i{background:var(--mal)}
+.gasto.cerca .br i{background:var(--aviso)}.gasto.cerca .sd small{color:#8A5200}
+.ok-tx{color:#22694B}
+.barras{display:flex;align-items:flex-end;gap:10px;height:150px;border-bottom:1.5px solid var(--borde);padding:0 4px}
+.barras .m{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:3px;height:100%;cursor:pointer;border-radius:8px 8px 0 0}
+.barras .m.on{background:var(--rosa)}
+.barras .m i{width:42%;max-width:26px;border-radius:5px 5px 0 0;min-height:2px}
+.barras .m i.bq{background:#6A1B3A}.barras .m i.bn{background:#D4537E}
+.ejes{display:flex;gap:10px;padding:6px 4px 0}
+.ejes span{flex:1;text-align:center;font-size:12px;color:var(--sec);font-weight:600;line-height:1.3}
+.ejes span b{display:block;color:var(--txt);font-size:12px}
+.ley{display:flex;gap:14px;font-size:12.5px;color:var(--sec);margin-top:10px;font-weight:600}
+.ley i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.cr .vl{font-weight:800;font-size:15px;white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right}
+.cr .vl small{font-weight:600;text-align:right}
+.tag.dif{background:var(--avisof);color:#8A5200}.tag.est{background:#F1EFE8;color:#5a5650}.tag.fac{background:var(--okf);color:#22694B}
+.bfac{border:1.5px solid var(--vino);background:#fff;color:var(--vino);border-radius:10px;min-height:40px;padding:0 12px;font-size:13px;font-weight:700;margin-top:8px}
+.pie-c{font-size:13px;color:var(--sec);line-height:1.5;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 .top{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 .top>.card{margin:0}
 .top .tc{grid-column:1/-1;display:flex;gap:16px;align-items:center}
@@ -295,11 +329,20 @@ button.foto:hover{background:var(--vino);color:#fff}button.foto:active{backgroun
  <div class="card"><h2>Recargas detectadas<small id="cntRc"></small></h2><div id="lstRc"></div></div>
 </div>
 
+<div id="vCostos" class="wrap" style="display:none">
+ <div class="mesb"><button id="mAnt" aria-label="Mes anterior" onclick="moverMes(-1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6l6 6"/></svg></button><b id="mesTx"></b><button id="mSig" aria-label="Mes siguiente" onclick="moverMes(1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6l-6 6"/></svg></button></div>
+ <div class="gastos" id="gastosC"></div>
+ <div class="card"><h2>Comparación entre meses<small>últimos 6 meses</small></h2><div id="barrasC"></div></div>
+ <div class="card"><h2>Costo de cada recarga<small id="cntC"></small></h2><div id="lstC"></div></div>
+ <div class="card"><div class="pie-c" id="pieC"></div></div>
+</div>
+
 <nav>
  <div class="brand"><img src="logo.jpg" alt=""><b>Tanques<br>criogénicos</b></div>
  <button id="nR" class="on" onclick="ver('R')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 13m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M13.45 11.55l2.05 -2.05"/><path d="M6.4 20a9 9 0 1 1 11.2 0z"/></svg>Resumen</button>
  <button id="nL" onclick="ver('L')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l11 0"/><path d="M9 12l11 0"/><path d="M9 18l11 0"/><path d="M5 6l0 .01"/><path d="M5 12l0 .01"/><path d="M5 18l0 .01"/></svg>Lecturas</button>
  <button id="nRc" onclick="ver('Rc')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5l0 14"/><path d="M18 11l-6 -6"/><path d="M6 11l6 -6"/></svg>Recargas</button>
+ <button id="nCo" onclick="ver('Co')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14c0 1.657 2.686 3 6 3s6 -1.343 6 -3s-2.686 -3 -6 -3s-6 1.343 -6 3z"/><path d="M9 14v4c0 1.656 2.686 3 6 3s6 -1.344 6 -3v-4"/><path d="M3 6c0 1.072 1.144 2.062 3 2.598s4.144 .536 6 0c1.856 -.536 3 -1.526 3 -2.598c0 -1.072 -1.144 -2.062 -3 -2.598s-4.144 -.536 -6 0c-1.856 .536 -3 1.526 -3 2.598z"/><path d="M3 6v10c0 .888 .772 1.45 2 2"/><path d="M3 11c0 .888 .772 1.45 2 2"/></svg>Costos</button>
  <button id="nInst" class="ninst oculto" onclick="instalar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>Instalar app</button>
  <div class="pie">Clínica Reina Catalina<br>Barranquilla y Baranoa</div>
 </nav>
@@ -316,6 +359,21 @@ button.foto:hover{background:var(--vino);color:#fff}button.foto:active{backgroun
  <p>Deja de verse en la app y no cuenta en los cálculos. En la hoja queda marcada como <b>Descartada</b> por si la necesitas después.</p>
  <div class="bts"><button class="no" onclick="cerrarBorra()">Cancelar</button><button class="si" id="bSi" onclick="confirmarBorra()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18.9 7a8 8 0 0 1 1.1 4v1a10 10 0 0 0 2 6"/><path d="M4 11a8 8 0 0 1 12-6.9"/><path d="M8 11a4 4 0 0 1 8 0v1a10 10 0 0 0 2 6"/><path d="M12 11v2a14 14 0 0 0 2.5 8"/><path d="M8 15a18 18 0 0 0 1.8 6"/><path d="M4.9 19a22 22 0 0 1-.9-7v-1"/></svg>Sí, borrar</button></div>
  <div class="err" id="bErr" role="alert"></div></div></div>
+<div class="modal" id="fac" role="dialog" aria-modal="true" aria-labelledby="facT"><div class="box">
+ <h3 id="facT">Factura de la recarga</h3><p id="facSub"></p>
+ <label for="facN">N.º de factura</label><input id="facN" autocomplete="off" placeholder="650F249796">
+ <label for="facM">m³ facturados</label><input id="facM" inputmode="decimal" autocomplete="off" placeholder="1116">
+ <p id="facCal" style="margin-top:8px;font-weight:600"></p>
+ <div class="bts"><button class="no" onclick="cerrarModal('fac')">Cancelar</button><button class="si" id="facGo" style="background:var(--vino)" onclick="guardarFac()">Guardar con huella</button></div>
+ <div class="err" id="facErr" role="alert"></div></div></div>
+<div class="modal" id="pre" role="dialog" aria-modal="true" aria-labelledby="preT"><div class="box">
+ <h3 id="preT">Precio y presupuesto</h3><p>Precio de Messer por m³ (sin IVA, con transporte) y presupuesto de cada mes. Deja el presupuesto vacío si aún no lo tienes.</p>
+ <label for="preA">Año</label><input id="preA" inputmode="numeric" autocomplete="off">
+ <label for="preP">Precio por m³</label><input id="preP" inputmode="numeric" autocomplete="off" placeholder="2787">
+ <label for="preBq">Presupuesto mensual Barranquilla</label><input id="preBq" inputmode="numeric" autocomplete="off" placeholder="Sin presupuesto">
+ <label for="preBn">Presupuesto mensual Baranoa</label><input id="preBn" inputmode="numeric" autocomplete="off" placeholder="Sin presupuesto">
+ <div class="bts"><button class="no" onclick="cerrarModal('pre')">Cancelar</button><button class="si" id="preGo" style="background:var(--vino)" onclick="guardarPre()">Guardar con huella</button></div>
+ <div class="err" id="preErr" role="alert"></div></div></div>
 <div class="aviso" id="aviso" role="status" hidden><span id="avisoTx"></span><button id="avisoBtn">Deshacer</button></div>
 <div class="visor" id="visor" role="dialog" aria-modal="true" aria-label="Foto del manómetro" hidden><div class="vcaja">
  <div class="vimg" id="vImg">
@@ -383,9 +441,10 @@ async function entrar(){const c=$('codigo').value.trim();if(!c){$('ingErr').text
 $('codigo').addEventListener('keydown',e=>{if(e.key==='Enter')entrar();});
 
 /* ---------- Pintar ---------- */
-function tituloVentana(){const n={R:'Resumen',L:'Lecturas',Rc:'Recargas'}[vista];$('tituloVista').textContent=n;
+const VISTAS={R:'Resumen',L:'Lecturas',Rc:'Recargas',Co:'Costos'};
+function tituloVentana(){const n=VISTAS[vista];$('tituloVista').textContent=n;
  const app=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;document.title=app?n:'Tanques criogénicos · '+n;}
-function ver(v){vista=v;setTimeout(tituloVentana);['R','L','Rc'].forEach(x=>{$('v'+({R:'Resumen',L:'Lecturas',Rc:'Recargas'}[x])).style.display=x===v?'block':'none';$('n'+x).classList.toggle('on',x===v);});window.scrollTo(0,0);}
+function ver(v){vista=v;setTimeout(tituloVentana);Object.keys(VISTAS).forEach(x=>{$('v'+VISTAS[x]).style.display=x===v?'block':'none';$('n'+x).classList.toggle('on',x===v);});window.scrollTo(0,0);}
 function elegir(s){sede=s;ls.set('sede',s);pintar();}
 function segHtml(){if(!D)return '';return D.sedes.map(s=>{const n=D.lecturas.filter(l=>l.sede===s.sede).length;return `<button class="${s.sede===sede?'on':''}" aria-pressed="${s.sede===sede}" onclick="elegir('${esc(s.sede)}')">${esc(s.sede)}<span class="cn">${n}</span></button>`;}).join('');}
 function lecturasDe(s){return D.lecturas.filter(l=>l.sede===s).sort((a,b)=>b.t-a.t);}
@@ -394,7 +453,7 @@ function valida(l){return (l.estado==='Automática'||l.estado==='Corregida')&&l.
 let animado=false;
 function pintar(){
  if(!D){const sk='<div class="card"><div class="sk" style="width:40%"></div><div class="sk" style="height:46px;width:55%"></div><div class="sk"></div></div>';
-  $('topR').innerHTML=sk+sk;$('grafR').innerHTML=sk;$('ultR').innerHTML='<div class="sk"></div><div class="sk"></div>';$('lstL').innerHTML=$('lstRc').innerHTML='<div class="sk"></div><div class="sk"></div>';return;}
+  $('topR').innerHTML=sk+sk;$('grafR').innerHTML=sk;$('ultR').innerHTML='<div class="sk"></div><div class="sk"></div>';$('lstL').innerHTML=$('lstRc').innerHTML=$('lstC').innerHTML='<div class="sk"></div><div class="sk"></div>';return;}
  if(!D.sedes.some(s=>s.sede===sede))sede=D.sedes[0].sede;
  ['segL','segRc'].forEach(id=>$(id).innerHTML=segHtml());
  const orden={mal:0,av:1,ok:2,nd:3};$('topR').innerHTML=D.sedes.slice().sort((a,b)=>orden[semaforo(a)]-orden[semaforo(b)]).map(tanqueCard).join('')+proximaCard()+remisionesCard();
@@ -402,7 +461,7 @@ function pintar(){
  $('ultR').innerHTML=ultimasLecturas();
  const fill=()=>document.querySelectorAll('.tk .liq').forEach(i=>i.style.height=i.dataset.h+'%');
  if(animado)fill();else{animado=true;requestAnimationFrame(()=>requestAnimationFrame(fill));}
- pintarLecturas();pintarRecargas();
+ pintarLecturas();pintarRecargas();pintarCostos();
 }
 
 const COLOR={ok:'#2E7D5B',av:'#C77700',mal:'#B3261E'};
@@ -540,7 +599,7 @@ function botonBorrar(l){return ADM.cred&&l.estado==='Dudosa'&&l.id?`<button clas
 function pintarAdmLink(){const b=$('admLink');if(!b)return;b.className='admlink'+(ADM.cred?' on':'');b.innerHTML=HUELLA_SVG+(ADM.cred?'Administrador: '+esc(ADM.nombre):'Modo administrador');}
 function abrirAdmin(){
  const box=$('admBox');
- if(ADM.cred){box.innerHTML=`<div class="ic vino">${HUELLA_SVG}</div><h3 id="admT">Modo administrador</h3><p>Huella registrada en este equipo para <b>${esc(ADM.nombre)}</b>. Puedes borrar fotos dudosas.</p>
+ if(ADM.cred){box.innerHTML=`<div class="ic vino">${HUELLA_SVG}</div><h3 id="admT">Modo administrador</h3><p>Huella registrada en este equipo para <b>${esc(ADM.nombre)}</b>. Puedes borrar fotos dudosas y escribir las facturas de Messer en Costos.</p>
   <div class="bts"><button class="no" onclick="quitarAdmin()">Quitar de este equipo</button><button class="go" style="margin:0" onclick="$('adm').style.display='none'">Listo</button></div>`;}
  else{box.innerHTML=`<div class="ic vino">${HUELLA_SVG}</div><h3 id="admT">Modo administrador</h3><p>Registra tu huella en este equipo. Solo se hace una vez y te pide el código de administrador.</p>
   <label for="admNom">Tu nombre</label><input id="admNom" autocomplete="off" value="${esc(ls.get('admNombre',''))}">
@@ -709,6 +768,89 @@ function pintarRecargas(){
   return;}
  $('lstRc').innerHTML=R.map(r=>`<div class="li"><div class="tx"><b>${diaLargo(r.t)}, ${hora(r.t)} ${est(r)}</b><small>${num(r.inicial)} → ${num(r.final)} pulg · <b style="display:inline;color:#22694B">${signo(r.cambio)} pulg</b></small><small>${r.remision?'Remisión <b style="display:inline">'+esc(r.remision)+'</b> · registró '+esc(r.registro||'—'):'Falta que un técnico responda en Telegram con el número de remisión.'}</small></div></div>`).join('');
 }
+
+/* ---------- Costos (Messer cobra por m³; precio sin IVA y con transporte) ---------- */
+const MESES_L=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const pesos=n=>n==null||isNaN(n)?'—':'$'+Math.round(n).toLocaleString('es-CO');
+const m3=n=>n==null||isNaN(n)?'—':Math.round(n).toLocaleString('es-CO')+' m³';
+const claveMes=ms=>{const p=partes(ms);return p.a*12+p.m-1;};
+const nombreMes=k=>MESES_L[k%12]+' '+Math.floor(k/12);
+let mesC=null;
+const costoDe=r=>r.costoFact!=null?r.costoFact:r.costoEst;
+function precioAnio(a){const P=(D.costos&&D.costos.precios)||[];let x=null;P.forEach(p=>{if(p.anio<=a&&p.precio)x=Object.assign({},p,{precio:p.precio});});const e=P.find(p=>p.anio===a);return{precio:x?x.precio:null,pres:e?e.pres:{},propio:!!e};}
+function mesesConDatos(){const R=D.costos.recargas,h=claveMes(Date.now());let min=h;R.forEach(r=>{min=Math.min(min,claveMes(r.t));});return{min,max:h};}
+function moverMes(d){const g=mesesConDatos();mesC=Math.max(g.min,Math.min(g.max,mesC+d));pintarCostos();}
+function pintarCostos(){
+ if(!D)return;
+ if(!D.costos){$('gastosC').innerHTML='';$('barrasC').innerHTML='';$('pieC').innerHTML='';$('lstC').innerHTML='<div class="vacio">Falta actualizar el servidor para ver los costos.</div>';$('mesTx').textContent='';return;}
+ const R=D.costos.recargas,g=mesesConDatos();if(mesC==null||mesC>g.max||mesC<g.min)mesC=g.max;
+ $('mesTx').textContent=nombreMes(mesC);$('mAnt').disabled=mesC<=g.min;$('mSig').disabled=mesC>=g.max;
+ const anio=Math.floor(mesC/12),pa=precioAnio(anio),delMes=R.filter(r=>claveMes(r.t)===mesC);
+ // 1. Gasto del mes por sede
+ $('gastosC').innerHTML=D.sedes.map(s=>{const L=delMes.filter(r=>r.sede===s.sede),tot=L.reduce((a,r)=>a+(costoDe(r)||0),0),mm=L.reduce((a,r)=>a+(r.m3Fact!=null?r.m3Fact:(r.m3||0)),0);
+  const est=L.some(r=>r.costoFact==null),pres=pa.pres&&pa.pres[s.sede];let cls='',est2='',pct=null;
+  if(pres){pct=tot/pres*100;cls=pct>100?' pasa':pct>=85?' cerca':'';est2=pct>100?'Pasó el presupuesto':pct>=85?'Cerca del presupuesto':'Dentro del presupuesto';}
+  const ic=pct!=null&&pct>100?IC_ALERTA:pct!=null&&pct<85?IC_CHECK:'';
+  return `<div class="card gasto${cls}"><div class="sd"><span>${esc(s.sede)}</span>${est2?`<small class="${pct<85?'ok-tx':''}">${est2}</small>`:'<small style="color:var(--sec)">Sin presupuesto</small>'}</div>
+  <div class="vl">${pesos(tot)}</div>${pres?`<div class="br"><i style="width:${Math.min(100,pct).toFixed(1)}%"></i></div>`:''}
+  <div class="ds">${pres?Math.round(pct)+' % de '+pesos(pres)+' · ':''}${L.length?L.length+(L.length===1?' recarga':' recargas')+' · '+m3(mm):'Sin recargas este mes'}${L.length&&est?'<br>Incluye valores estimados (falta la factura)':''}</div></div>`;}).join('');
+ // 2. Comparación entre meses
+ const ks=[];for(let k=mesC-5;k<=mesC;k++)ks.push(k);
+ const tot=(k,s)=>R.filter(r=>claveMes(r.t)===k&&r.sede===s).reduce((a,r)=>a+(costoDe(r)||0),0);
+ const S=D.sedes.map(s=>s.sede),mx=Math.max(1,...ks.flatMap(k=>S.map(s=>tot(k,s))));
+ const cl=s=>s==='Barranquilla'?'bq':'bn',mill=n=>n?String(Math.round(n/1e5)/10).replace('.',','):'0';
+ $('barrasC').innerHTML=`<div class="barras" role="img" aria-label="Gasto por mes y sede">${ks.map(k=>`<div class="m${k===mesC?' on':''}" onclick="mesC=${k};pintarCostos()" title="${nombreMes(k)}">${S.map(s=>{const v=tot(k,s);return `<i class="${cl(s)}" style="height:${(v/mx*100).toFixed(1)}%" title="${esc(s)}: ${pesos(v)}"></i>`;}).join('')}</div>`).join('')}</div>
+ <div class="ejes">${ks.map(k=>`<span>${MESES[k%12]}<b>${mill(S.reduce((a,s)=>a+tot(k,s),0))}</b></span>`).join('')}</div>
+ <div class="ley">${S.map(s=>`<span><i style="background:${cl(s)==='bq'?'#6A1B3A':'#D4537E'}"></i>${esc(s)}</span>`).join('')}<span style="margin-left:auto">Millones de pesos</span></div>`;
+ // 3. Costo de cada recarga
+ const L=delMes.slice().sort((a,b)=>b.t-a.t);$('cntC').textContent=L.length?L.length+' en '+MESES_L[mesC%12].toLowerCase():'';
+ $('lstC').innerHTML=L.length?L.map(r=>{
+  let tg='';if(r.m3Fact!=null&&r.m3!=null){const d=r.m3Fact-r.m3,pc=r.m3?d/r.m3*100:0;
+   tg=Math.abs(pc)>=10?`<span class="tag dif">Messer facturó ${Math.abs(Math.round(pc))} % ${d>0?'más':'menos'} (${d>0?'+':'−'}${Math.abs(Math.round(d)).toLocaleString('es-CO')} m³)</span>`:`<span class="tag fac">Factura ${esc(r.factura||'')} · ${d>0?'+':d<0?'−':''}${Math.abs(Math.round(d)).toLocaleString('es-CO')} m³</span>`;}
+  else if(r.m3Fact!=null)tg=`<span class="tag fac">Factura ${esc(r.factura||'')}</span>`;else tg='<span class="tag est">Estimado · falta la factura</span>';
+  return `<div class="li cr"><div class="tx"><b>${diaLargo(r.t)} · ${esc(r.sede)}</b><small>${num(r.inicial)} → ${num(r.final)} pulg · tabla ${m3(r.m3)}${r.m3Fact!=null?' · facturado '+m3(r.m3Fact):''}</small><small>${r.remision?'Remisión '+esc(r.remision)+' · ':''}${tg}</small>${ADM.cred?`<button class="bfac" onclick="abrirFac('${esc(r.id)}')">${r.m3Fact!=null?'Cambiar factura':'Escribir factura'}</button>`:''}</div><div class="vl">${pesos(costoDe(r))}${r.costoFact==null&&r.costoEst!=null?'<small>estimado</small>':''}</div></div>`;}).join('')
+  :'<div class="vacio">No hubo recargas en '+nombreMes(mesC).toLowerCase()+'.</div>';
+ // Precio y presupuesto
+ $('pieC').innerHTML=`<span>Precio ${anio}: <b style="color:var(--txt)">${pa.precio?pesos(pa.precio)+' por m³':'sin precio'}</b> · sin IVA, con transporte${pa.precio&&!pa.propio?' (el del año anterior)':''}</span>${ADM.cred?`<button class="bfac" style="margin:0" onclick="abrirPre(${anio})">Editar precio y presupuesto</button>`:''}`;
+}
+function cerrarModal(id){$(id).style.display='none';}
+async function firmaAdmin(para){
+ const r=await api('huellaReto',{para});
+ const a=await navigator.credentials.get({publicKey:{challenge:deB64u(r.reto),rpId:location.hostname,allowCredentials:[{type:'public-key',id:deB64u(ADM.cred)}],userVerification:'required',timeout:60000}});
+ return{retoId:r.id,credId:a.id,authenticatorData:b64u(a.response.authenticatorData),clientDataJSON:b64u(a.response.clientDataJSON),signature:b64u(a.response.signature)};
+}
+function errHuella(e){if(/no está registrada/i.test(e.message||'')){ADM.cred='';ls.set('admCred','');pintarAdmLink();pintar();}
+ return e.name==='NotAllowedError'?'Se canceló o no se reconoció la huella.':(e.red?'Sin conexión. Intenta cuando tengas señal.':e.message);}
+let facR=null;
+function calcFac(){const v=Number(String($('facM').value).replace(/\./g,'').replace(',','.'));const r=facR;
+ $('facCal').textContent=r&&v>0&&r.precio?'Costo facturado: '+pesos(v*r.precio)+(r.m3?' · tabla '+m3(r.m3):''):'';}
+function abrirFac(id){const r=D.costos.recargas.find(x=>x.id===id);if(!r)return;facR=r;
+ $('facSub').textContent=r.sede+' · '+diaLargo(r.t).toLowerCase()+' · '+num(r.inicial)+' → '+num(r.final)+' pulg · tabla '+m3(r.m3);
+ $('facN').value=r.factura||'';$('facM').value=r.m3Fact!=null?r.m3Fact:'';$('facErr').textContent='';$('facGo').disabled=false;calcFac();
+ $('fac').style.display='flex';setTimeout(()=>$('facN').focus(),50);}
+$('facM').addEventListener('input',calcFac);
+async function guardarFac(){const r=facR;if(!r)return;const n=$('facN').value.trim(),m=$('facM').value.trim(),err=$('facErr'),btn=$('facGo');
+ const v=Number(m.replace(/\./g,'').replace(',','.'));
+ if(m&&!(v>0)){err.textContent='Escribe los m³ facturados como número, por ejemplo 1116.';return;}
+ if(!n&&!m){err.textContent='Escribe el número de factura o los m³ facturados.';return;}
+ btn.disabled=true;err.textContent='Pon tu dedo para confirmar…';
+ try{const f=await firmaAdmin('factura:'+r.id);await api('factura',Object.assign({id:r.id,factura:n,m3:m?v:''},f));
+  r.factura=n;r.m3Fact=m?v:null;r.costoFact=m&&r.precio?Math.round(v*r.precio):null;ls.set('datos',D);
+  cerrarModal('fac');pintarCostos();mostrarAviso('Factura guardada');}
+ catch(e){btn.disabled=false;err.textContent=errHuella(e);}}
+function abrirPre(anio){const P=(D.costos.precios||[]).find(p=>p.anio===anio)||{pres:{}},pa=precioAnio(anio);
+ $('preA').value=anio;$('preP').value=P.precio||pa.precio||'';$('preBq').value=(P.pres&&P.pres.Barranquilla)||'';$('preBn').value=(P.pres&&P.pres.Baranoa)||'';
+ $('preErr').textContent='';$('preGo').disabled=false;$('pre').style.display='flex';setTimeout(()=>$('preP').focus(),50);}
+async function guardarPre(){const err=$('preErr'),btn=$('preGo'),lim=x=>String(x).replace(/[$\s.]/g,'').replace(',','.');
+ const anio=Number($('preA').value),precio=Number(lim($('preP').value)),bq=lim($('preBq').value),bn=lim($('preBn').value);
+ if(!(anio>=2020&&anio<=2100)){err.textContent='Escribe el año, por ejemplo 2027.';return;}
+ if(!(precio>=100)){err.textContent='Escribe el precio por m³, por ejemplo 2787.';return;}
+ if((bq&&isNaN(bq))||(bn&&isNaN(bn))){err.textContent='El presupuesto va en pesos, solo números.';return;}
+ btn.disabled=true;err.textContent='Pon tu dedo para confirmar…';
+ try{const f=await firmaAdmin('precios');await api('precios',Object.assign({anio,precio,presBarranquilla:bq,presBaranoa:bn},f));
+  cerrarModal('pre');mostrarAviso('Precio y presupuesto guardados');cargar();}
+ catch(e){btn.disabled=false;err.textContent=errHuella(e);}}
+addEventListener('keydown',e=>{if(e.key==='Escape'){['fac','pre'].forEach(id=>{if($(id).style.display==='flex')cerrarModal(id);});}});
 let anchoAnt=innerWidth;addEventListener('resize',()=>{if(D&&(innerWidth<700)!==(anchoAnt<700))$('grafR').innerHTML=D.sedes.map(s=>graficaTanque(s,30)).join('');anchoAnt=innerWidth;if(D){pintarLecturas();pintarRecargas();}});
 
 /* ---------- Demostración (?demo=1) ---------- */
