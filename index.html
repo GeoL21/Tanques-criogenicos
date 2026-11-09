@@ -66,6 +66,9 @@ header p{margin:2px 0 0;font-size:12.5px;color:var(--sec)}
 .tag.mant{background:#F1EFE8;color:#444441}
 /* Recarga en lecturas: etiqueta verde sólida y fila en verde suave para que resalte */
 .tag.rc{background:#2E7D5B;color:#fff}
+.tag.fuerte{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 12px;border-radius:20px}
+.tag.fuerte svg{width:15px;height:15px;flex:none}
+.tag.fuerte.ok{background:#2E7D5B;color:#fff}.tag.fuerte.falta{background:#B86E00;color:#fff}
 tr.recarga td{background:var(--okf)}tr.recarga td:first-child{box-shadow:inset 4px 0 0 #2E7D5B}tr.recarga td.n{color:#22694B;font-weight:700}
 .ul.recarga{background:var(--okf);box-shadow:inset 4px 0 0 #2E7D5B;border-radius:10px;padding-left:12px;padding-right:8px}.ul.recarga .v{color:#22694B}
 .li.recarga{background:var(--okf);box-shadow:inset 4px 0 0 #2E7D5B;border-radius:10px;padding-left:12px;padding-right:8px}.tag.Dudosa{background:var(--avisof);color:#8A5200}
@@ -593,6 +596,8 @@ addEventListener('keydown',e=>{if(e.key==='Escape'&&$('borra').style.display==='
 // Si la huella se quitó del servidor, el bote deja de aparecer
 if(ADM.cred&&!DEMO)setTimeout(()=>api('huellaEstado',{credId:ADM.cred}).then(j=>{if(!j.nombre){ADM.cred='';ls.set('admCred','');pintarAdmLink();pintar();}}).catch(()=>{}),3000);
 pintarAdmLink();
+const IC_CHECK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>';
+const IC_ALERTA='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 7v6"/><path d="M12 17v.01"/></svg>';
 /* ---------- Visor de fotos: el servidor entrega la foto con el código del tablero ---------- */
 const V={lista:[],i:0,abierto:false,origen:null,tok:0},memo=new Map(),CACHE_FOTOS='tanques-fotos';
 function fotosDe(s){return D.lecturas.filter(l=>l.sede===s&&idFoto(l)).sort((a,b)=>a.t-b.t);}
@@ -696,9 +701,11 @@ function pintarRecargas(){
  $('cntRc').textContent=R.length+' en 60 días'+(falta?' · '+falta+' sin remisión':'');
  if(!R.length){$('lstRc').innerHTML='<div class="vacio">No se han detectado recargas de '+esc(sede)+' en los últimos 60 días.</div>';return;}
  const est=r=>r.estado==='Falta remisión'?'<span class="tag Dudosa">Falta remisión</span>':r.estado==='Completa'?'<span class="tag Recarga">Completa</span>':'';
+ // En la tabla de PC el estado va como etiqueta sólida para que se vea de lejos
+ const estPc=r=>r.estado==='Falta remisión'?'<span class="tag fuerte falta">'+IC_ALERTA+'Falta remisión</span>':r.estado==='Completa'?'<span class="tag fuerte ok">'+IC_CHECK+'Completa</span>':'';
  if(window.matchMedia('(min-width:1024px)').matches){
   $('lstRc').innerHTML=`<div class="tw"><table class="cen"><thead><tr><th>Fecha y hora</th><th>Inicial</th><th>Final</th><th>Recargado</th><th>N.º remisión</th><th>Estado</th><th>Registró</th></tr></thead><tbody>`+
-  R.map(r=>`<tr><td>${diaLargo(r.t)}, ${hora(r.t)}</td><td class="n">${num(r.inicial)}</td><td class="n">${num(r.final)}</td><td class="n">${signo(r.cambio)}</td><td>${r.remision?'<b>'+esc(r.remision)+'</b>':'—'}</td><td>${est(r)}</td><td>${esc(r.registro||'—')}</td></tr>`).join('')+'</tbody></table></div>';
+  R.map(r=>`<tr><td>${diaLargo(r.t)}, ${hora(r.t)}</td><td class="n">${num(r.inicial)}</td><td class="n">${num(r.final)}</td><td class="n">${signo(r.cambio)}</td><td>${r.remision?'<b>'+esc(r.remision)+'</b>':'—'}</td><td>${estPc(r)}</td><td>${esc(r.registro||'—')}</td></tr>`).join('')+'</tbody></table></div>';
   return;}
  $('lstRc').innerHTML=R.map(r=>`<div class="li"><div class="tx"><b>${diaLargo(r.t)}, ${hora(r.t)} ${est(r)}</b><small>${num(r.inicial)} → ${num(r.final)} pulg · <b style="display:inline;color:#22694B">${signo(r.cambio)} pulg</b></small><small>${r.remision?'Remisión <b style="display:inline">'+esc(r.remision)+'</b> · registró '+esc(r.registro||'—'):'Falta que un técnico responda en Telegram con el número de remisión.'}</small></div></div>`).join('');
 }
