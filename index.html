@@ -171,6 +171,11 @@ nav .ninst{display:none}
 .ul b{display:block;font-size:14px}
 .ul small{display:block;font-size:12.5px;color:var(--sec);margin-top:2px}
 .ul .v{font-size:18px;font-weight:800;color:var(--vino);font-variant-numeric:tabular-nums}
+/* Alineadas: mismo margen en todas las filas; botón de foto pequeño y número en columna fija */
+.ul{padding:9px 8px 9px 12px}
+.ul .v{min-width:50px;text-align:right;flex:none}
+.ul .foto{flex:none;min-height:30px;font-size:11px;padding:0 8px;gap:3px;border-width:1.2px}.ul .foto svg{width:13px;height:13px}
+.ul .bote{width:34px;height:34px}
 /* Movimiento (solo en esta app, de prueba) */
 .tq i::before{content:"";position:absolute;left:0;right:0;top:-7px;height:8px;background:inherit;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 10' preserveAspectRatio='none'%3E%3Cpath d='M0 5Q10 0 20 5T40 5V10H0Z'/%3E%3C/svg%3E") 0 0/40px 8px repeat-x;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 10' preserveAspectRatio='none'%3E%3Cpath d='M0 5Q10 0 20 5T40 5V10H0Z'/%3E%3C/svg%3E") 0 0/40px 8px repeat-x;animation:ola 2.6s linear infinite}
 @keyframes ola{to{-webkit-mask-position:40px 0;mask-position:40px 0}}
@@ -406,7 +411,7 @@ function num(n,d){if(n==null||isNaN(n))return '—';const f=Math.pow(10,d==null?
 function signo(n){if(n==null||isNaN(n))return '—';const r=Math.round(n*10)/10;return r>0?'+'+num(r):r<0?'−'+num(-r):'0';}
 function partes(ms){const p={};new Intl.DateTimeFormat('en-US',{timeZone:ZONA,year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'numeric',hour12:false,weekday:'short'}).formatToParts(new Date(ms)).forEach(x=>p[x.type]=x.value);
  return{a:+p.year,m:+p.month,d:+p.day,h:(+p.hour)%24,min:+p.minute,ds:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(p.weekday)};}
-function hora(ms){const p=partes(ms),h12=p.h%12===0?12:p.h%12;return h12+':'+String(p.min).padStart(2,'0')+(p.h<12?' a. m.':' p. m.');}
+function hora(ms){const p=partes(ms),h12=p.h%12===0?12:p.h%12;return h12+':'+String(p.min).padStart(2,'0')+(p.h<12?'\u00a0a.\u00a0m.':'\u00a0p.\u00a0m.');}
 function fecha(ms){const p=partes(ms);return p.d+' '+MESES[p.m-1];}
 function fechaHora(ms){return fecha(ms)+', '+hora(ms);}
 function diaLargo(ms){const p=partes(ms),hoy=partes(Date.now()),ay=partes(Date.now()-864e5);
