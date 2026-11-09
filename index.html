@@ -364,7 +364,7 @@ button.foto:hover{background:var(--vino);color:#fff}button.foto:active{backgroun
  <label for="facN">N.º de factura</label><input id="facN" autocomplete="off" placeholder="650F249796">
  <label for="facM">m³ facturados</label><input id="facM" inputmode="decimal" autocomplete="off" placeholder="1116">
  <p id="facCal" style="margin-top:8px;font-weight:600"></p>
- <div class="bts"><button class="no" onclick="cerrarModal('fac')">Cancelar</button><button class="si" id="facGo" style="background:var(--vino)" onclick="guardarFac()">Guardar con huella</button></div>
+ <div class="bts"><button class="no" onclick="cerrarModal('fac')">Cancelar</button><button class="si" id="facGo" style="background:var(--vino)" onclick="guardarFac()">Guardar y confirmar</button></div>
  <div class="err" id="facErr" role="alert"></div></div></div>
 <div class="modal" id="pre" role="dialog" aria-modal="true" aria-labelledby="preT"><div class="box">
  <h3 id="preT">Precio y presupuesto</h3><p>Precio de Messer por m³ (sin IVA, con transporte) y presupuesto de cada mes. Deja el presupuesto vacío si aún no lo tienes.</p>
@@ -372,7 +372,7 @@ button.foto:hover{background:var(--vino);color:#fff}button.foto:active{backgroun
  <label for="preP">Precio por m³</label><input id="preP" inputmode="numeric" autocomplete="off" placeholder="2787">
  <label for="preBq">Presupuesto mensual Barranquilla</label><input id="preBq" inputmode="numeric" autocomplete="off" placeholder="Sin presupuesto">
  <label for="preBn">Presupuesto mensual Baranoa</label><input id="preBn" inputmode="numeric" autocomplete="off" placeholder="Sin presupuesto">
- <div class="bts"><button class="no" onclick="cerrarModal('pre')">Cancelar</button><button class="si" id="preGo" style="background:var(--vino)" onclick="guardarPre()">Guardar con huella</button></div>
+ <div class="bts"><button class="no" onclick="cerrarModal('pre')">Cancelar</button><button class="si" id="preGo" style="background:var(--vino)" onclick="guardarPre()">Guardar y confirmar</button></div>
  <div class="err" id="preErr" role="alert"></div></div></div>
 <div class="aviso" id="aviso" role="status" hidden><span id="avisoTx"></span><button id="avisoBtn">Deshacer</button></div>
 <div class="visor" id="visor" role="dialog" aria-modal="true" aria-label="Foto del manómetro" hidden><div class="vcaja">
@@ -593,18 +593,21 @@ function linkFoto(l){const id=idFoto(l);return botonBorrar(l)+(id?`<button class
 /* ---------- Administrador con huella: borrar lecturas dudosas ---------- */
 const b64u=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 const deB64u=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')+'==='.slice((s.length+3)%4)),c=>c.charCodeAt(0));
+/* En un PC con Windows la llave se confirma con Windows Hello (PIN de Windows o huella si tiene lector). */
+const WIN=/Windows/.test(navigator.userAgent);
+const PON=WIN?'Confirma con tu PIN de Windows…':'Pon tu dedo para confirmar…';
 const ADM={cred:ls.get('admCred',''),nombre:ls.get('admNombre',''),borrar:null};
 const HUELLA_SVG=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18.9 7a8 8 0 0 1 1.1 4v1a10 10 0 0 0 2 6"/><path d="M4 11a8 8 0 0 1 12-6.9"/><path d="M8 11a4 4 0 0 1 8 0v1a10 10 0 0 0 2 6"/><path d="M12 11v2a14 14 0 0 0 2.5 8"/><path d="M8 15a18 18 0 0 0 1.8 6"/><path d="M4.9 19a22 22 0 0 1-.9-7v-1"/></svg>`;
 function botonBorrar(l){return ADM.cred&&l.estado==='Dudosa'&&l.id?`<button class="bote" aria-label="Borrar foto dudosa" onclick="pedirBorrar('${esc(l.id)}',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3h6v3"/></svg></button>`:'';}
 function pintarAdmLink(){const b=$('admLink');if(!b)return;b.className='admlink'+(ADM.cred?' on':'');b.innerHTML=HUELLA_SVG+(ADM.cred?'Administrador: '+esc(ADM.nombre):'Modo administrador');}
 function abrirAdmin(){
  const box=$('admBox');
- if(ADM.cred){box.innerHTML=`<div class="ic vino">${HUELLA_SVG}</div><h3 id="admT">Modo administrador</h3><p>Huella registrada en este equipo para <b>${esc(ADM.nombre)}</b>. Puedes borrar fotos dudosas y escribir las facturas de Messer en Costos.</p>
+ if(ADM.cred){box.innerHTML=`<div class="ic vino">${HUELLA_SVG}</div><h3 id="admT">Modo administrador</h3><p>${WIN?'Este PC está registrado':'Huella registrada en este equipo'} para <b>${esc(ADM.nombre)}</b>. Puedes borrar fotos dudosas y escribir las facturas de Messer en Costos.</p>
   <div class="bts"><button class="no" onclick="quitarAdmin()">Quitar de este equipo</button><button class="go" style="margin:0" onclick="$('adm').style.display='none'">Listo</button></div>`;}
- else{box.innerHTML=`<div class="ic vino">${HUELLA_SVG}</div><h3 id="admT">Modo administrador</h3><p>Registra tu huella en este equipo. Solo se hace una vez y te pide el código de administrador.</p>
+ else{box.innerHTML=`<div class="ic vino">${HUELLA_SVG}</div><h3 id="admT">Modo administrador</h3><p>${WIN?'Registra este PC. Windows te pedirá tu PIN (Windows Hello) en lugar de la huella. Solo se hace una vez y te pide el código de administrador.':'Registra tu huella en este equipo. Solo se hace una vez y te pide el código de administrador.'}</p>
   <label for="admNom">Tu nombre</label><input id="admNom" autocomplete="off" value="${esc(ls.get('admNombre',''))}">
   <label for="admCod">Código de administrador</label><input id="admCod" type="password" autocomplete="off">
-  <button class="go" id="admGo" onclick="registrarAdmin()">Registrar huella</button>
+  <button class="go" id="admGo" onclick="registrarAdmin()">${WIN?'Registrar este PC':'Registrar huella'}</button>
   <button class="go" style="background:#fff;color:var(--vino);border:1.5px solid var(--vino)" onclick="$('adm').style.display='none'">Cancelar</button><div class="err" id="admErr" role="alert"></div>`;}
  $('adm').style.display='flex';
 }
@@ -613,7 +616,7 @@ async function registrarAdmin(){
  const nom=$('admNom').value.trim(),cod=$('admCod').value.trim(),err=$('admErr'),btn=$('admGo');
  if(!nom||!cod){err.textContent='Escribe tu nombre y el código.';return;}
  if(!window.PublicKeyCredential){err.textContent='Este navegador no permite huella. Usa Chrome actualizado.';return;}
- btn.disabled=true;err.textContent='Pon tu dedo cuando el equipo lo pida…';
+ btn.disabled=true;err.textContent=WIN?'Escribe tu PIN de Windows cuando lo pida…':'Pon tu dedo cuando el equipo lo pida…';
  try{
   const r=await api('huellaReto',{para:'registro'});
   const c=await navigator.credentials.create({publicKey:{challenge:deB64u(r.reto),rp:{id:location.hostname,name:'Clínica Reina Catalina'},
@@ -622,8 +625,8 @@ async function registrarAdmin(){
   if(!c.response.getPublicKey)throw new Error('Este navegador no entrega la llave. Actualiza Chrome.');
   const out=await api('huellaRegistrar',{codigoAdmin:cod,retoId:r.id,nombre:nom,credId:c.id,alg:c.response.getPublicKeyAlgorithm(),spki:b64u(c.response.getPublicKey()),clientDataJSON:b64u(c.response.clientDataJSON)});
   ADM.cred=c.id;ADM.nombre=out.nombre;ls.set('admCred',c.id);ls.set('admNombre',out.nombre);
-  $('adm').style.display='none';pintarAdmLink();pintar();mostrarAviso('Huella registrada. Ya puedes borrar fotos dudosas.');
- }catch(e){err.textContent=e.name==='NotAllowedError'?'Se canceló o no se reconoció la huella.':(e.red?'Sin conexión.':e.message);}
+  $('adm').style.display='none';pintarAdmLink();pintar();mostrarAviso(WIN?'PC registrado. Ya puedes editar desde aquí.':'Huella registrada. Ya puedes editar.');
+ }catch(e){err.textContent=e.name==='NotAllowedError'?(WIN?'Se canceló o no se confirmó el PIN.':'Se canceló o no se reconoció la huella.'):(e.red?'Sin conexión.':e.message);}
  finally{btn.disabled=false;}
 }
 function pedirBorrar(id,btn){
@@ -636,7 +639,7 @@ function pedirBorrar(id,btn){
 }
 function cerrarBorra(){$('borra').style.display='none';if(ADM.borrar&&ADM.borrar.btn&&document.contains(ADM.borrar.btn))ADM.borrar.btn.focus();ADM.borrar=null;}
 async function confirmarBorra(){
- const b=ADM.borrar;if(!b)return;const btn=$('bSi'),err=$('bErr');btn.disabled=true;err.textContent='Pon tu dedo para confirmar…';
+ const b=ADM.borrar;if(!b)return;const btn=$('bSi'),err=$('bErr');btn.disabled=true;err.textContent=PON;
  try{
   const r=await api('huellaReto',{para:'descartar:'+b.l.id});
   const a=await navigator.credentials.get({publicKey:{challenge:deB64u(r.reto),rpId:location.hostname,allowCredentials:[{type:'public-key',id:deB64u(ADM.cred)}],userVerification:'required',timeout:60000}});
@@ -646,7 +649,7 @@ async function confirmarBorra(){
   mostrarAviso('Foto borrada',async()=>{try{await api('restaurar',{token:out.token});D.lecturas.splice(Math.max(0,i),0,b.l);ls.set('datos',D);pintar();mostrarAviso('Se recuperó la foto.');}catch(e){mostrarAviso(e.red?'Sin conexión: no se pudo deshacer.':e.message);}});
  }catch(e){btn.disabled=false;
   if(/no está registrada/i.test(e.message||'')){ADM.cred='';ls.set('admCred','');pintarAdmLink();pintar();}
-  err.textContent=e.name==='NotAllowedError'?'Se canceló o no se reconoció la huella.':(e.red?'Sin conexión. Intenta cuando tengas señal.':e.message);}
+  err.textContent=e.name==='NotAllowedError'?(WIN?'Se canceló o no se confirmó el PIN.':'Se canceló o no se reconoció la huella.'):(e.red?'Sin conexión. Intenta cuando tengas señal.':e.message);}
 }
 let avisoT=0;
 function mostrarAviso(t,deshacer){const a=$('aviso'),btn=$('avisoBtn');$('avisoTx').textContent=t;btn.hidden=!deshacer;btn.onclick=()=>{a.hidden=true;clearTimeout(avisoT);deshacer();};
@@ -820,7 +823,7 @@ async function firmaAdmin(para){
  return{retoId:r.id,credId:a.id,authenticatorData:b64u(a.response.authenticatorData),clientDataJSON:b64u(a.response.clientDataJSON),signature:b64u(a.response.signature)};
 }
 function errHuella(e){if(/no está registrada/i.test(e.message||'')){ADM.cred='';ls.set('admCred','');pintarAdmLink();pintar();}
- return e.name==='NotAllowedError'?'Se canceló o no se reconoció la huella.':(e.red?'Sin conexión. Intenta cuando tengas señal.':e.message);}
+ return e.name==='NotAllowedError'?(WIN?'Se canceló o no se confirmó el PIN.':'Se canceló o no se reconoció la huella.'):(e.red?'Sin conexión. Intenta cuando tengas señal.':e.message);}
 let facR=null;
 function calcFac(){const v=Number(String($('facM').value).replace(/\./g,'').replace(',','.'));const r=facR;
  $('facCal').textContent=r&&v>0&&r.precio?'Costo facturado: '+pesos(v*r.precio)+(r.m3?' · tabla '+m3(r.m3):''):'';}
@@ -833,7 +836,7 @@ async function guardarFac(){const r=facR;if(!r)return;const n=$('facN').value.tr
  const v=Number(m.replace(/\./g,'').replace(',','.'));
  if(m&&!(v>0)){err.textContent='Escribe los m³ facturados como número, por ejemplo 1116.';return;}
  if(!n&&!m){err.textContent='Escribe el número de factura o los m³ facturados.';return;}
- btn.disabled=true;err.textContent='Pon tu dedo para confirmar…';
+ btn.disabled=true;err.textContent=PON;
  try{const f=await firmaAdmin('factura:'+r.id);await api('factura',Object.assign({id:r.id,factura:n,m3:m?v:''},f));
   r.factura=n;r.m3Fact=m?v:null;r.costoFact=m&&r.precio?Math.round(v*r.precio):null;ls.set('datos',D);
   cerrarModal('fac');pintarCostos();mostrarAviso('Factura guardada');}
@@ -846,7 +849,7 @@ async function guardarPre(){const err=$('preErr'),btn=$('preGo'),lim=x=>String(x
  if(!(anio>=2020&&anio<=2100)){err.textContent='Escribe el año, por ejemplo 2027.';return;}
  if(!(precio>=100)){err.textContent='Escribe el precio por m³, por ejemplo 2787.';return;}
  if((bq&&isNaN(bq))||(bn&&isNaN(bn))){err.textContent='El presupuesto va en pesos, solo números.';return;}
- btn.disabled=true;err.textContent='Pon tu dedo para confirmar…';
+ btn.disabled=true;err.textContent=PON;
  try{const f=await firmaAdmin('precios');await api('precios',Object.assign({anio,precio,presBarranquilla:bq,presBaranoa:bn},f));
   cerrarModal('pre');mostrarAviso('Precio y presupuesto guardados');cargar();}
  catch(e){btn.disabled=false;err.textContent=errHuella(e);}}

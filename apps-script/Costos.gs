@@ -32,6 +32,11 @@ const TABLA_M3 = {
     4382, 4419, 4441, 4485, 4517, 4541, 4578, 4614, 4634, 4666, 4679, 4701, 4709, 4721, 4724, 4728]
 };
 
+/** 2806000 -> "2.806.000" */
+function miles(n) {
+  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
 /** m³ que hay en el tanque con ese nivel (si el nivel tiene decimales, se reparte entre las dos pulgadas). */
 function m3DeNivel(sede, pulg) {
   const t = TABLA_M3[sede];

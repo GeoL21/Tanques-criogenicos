@@ -928,6 +928,11 @@ function manejarFotoRemision(msg, sede, blob, archivo, tMs) {
       (x.estado === 'Falta remisión' || (d.numero && x.remision === d.numero));
   }).sort(function(a, b) { return b.t - a.t; });
   const rec = recs[0];
+  // La fecha va a mano: si la IA lee un año que no cuadra (2024 en vez de 2026), se usa el año de la recarga.
+  if (d.fecha && rec && Math.abs(d.fecha.getTime() - rec.t) > 60 * 86400000) {
+    const ajustada = new Date(new Date(rec.t).getFullYear(), d.fecha.getMonth(), d.fecha.getDate(), 12);
+    d.fecha = Math.abs(ajustada.getTime() - rec.t) <= 60 * 86400000 ? ajustada : null;
+  }
   const leido = [];
   if (d.numero) leido.push('N.º remisión: <b>' + d.numero + '</b>' + (d.fecha ? ' · ' + d.fecha.getDate() + ' ' + MESES_CORTOS[d.fecha.getMonth()] + ' ' + d.fecha.getFullYear() : ''));
   if (d.antes !== null || d.despues !== null) leido.push('Nivel: <b>' + (d.antes !== null ? num(d.antes) : '?') + ' → ' + (d.despues !== null ? num(d.despues) : '?') + ' pulg</b>' +
@@ -959,26 +964,53 @@ function manejarFotoRemision(msg, sede, blob, archivo, tMs) {
   const finalMan = rec.final === '' || rec.final === null ? null : Number(rec.final);
   const iniFoto = rec.inicial === '' || rec.inicial === null ? null : Number(rec.inicial);
   const notas = [];
-  let ini = iniFoto;
+  let ini = iniFoto, espera = '';
   if (d.antes !== null && finalMan !== null && d.antes < finalMan) {
     ini = d.antes;
     ponerEnRecarga(rec.fila, 'Inicial (pulg)', ini);
-    if (iniFoto !== null && Math.abs(iniFoto - ini) >= 0.5) notas.push('Ajusté el nivel inicial: la última foto marcaba ' + num(iniFoto) + ' y la remisión dice ' + num(ini) + '.');
+    if (iniFoto !== null && iniFoto - ini >= 0.5) {
+      // Lo normal: el camión llega horas después de la última foto y el tanque siguió gastando
+      const previa = ultimaLecturaAntes(sede, rec.t);
+      const pf = previa ? partesFecha(previa.t) : null;
+      espera = '\n🕒 <b>Mientras llegaba el camión, el tanque siguió gastando:</b>' +
+        '\n• Última foto' + (pf ? ' (' + pf.dia + ' ' + MESES_CORTOS[pf.mes - 1] + ', ' + horaAmPm(pf.hora, pf.min) + ')' : '') + ': <b>' + num(iniFoto) + ' pulg</b>' +
+        '\n• Cuando llegó el camión (remisión): <b>' + num(ini) + ' pulg</b>' +
+        '\n• Gastó <b>' + num(iniFoto - ini) + ' pulg</b> esperando. Es normal; para calcular la recarga uso el nivel de la remisión.';
+    } else if (iniFoto !== null && Math.abs(iniFoto - ini) >= 0.5) {
+      notas.push('La última foto marcaba ' + num(iniFoto) + ' pulg y la remisión dice ' + num(ini) + '; uso el de la remisión.');
+    }
   }
   if (ini !== null && finalMan !== null) ponerEnRecarga(rec.fila, 'Pulgadas recargadas', Math.round((finalMan - ini) * 10) / 10);
   if (d.despues !== null && finalMan !== null && Math.abs(d.despues - finalMan) > 3) {
     notas.push('La remisión dice ' + num(d.despues) + ' pulg después de llenar y el manómetro marcó ' + num(finalMan) + '; dejé el del manómetro.');
   }
-  const p = partesFecha(rec.t);
-  const env = responderEnTema(msg, cab + leido.join('\n') + '\n' +
-    '✅ La guardé en la recarga del ' + p.dia + ' ' + MESES_CORTOS[p.mes - 1] + ', ' + horaAmPm(p.hora, p.min) + ' y quedó <b>Completa</b>' +
-    (ini !== null && finalMan !== null ? ': <b>' + num(ini) + ' → ' + num(finalMan) + ' pulg (' + signoTxt(finalMan - ini) + ')</b>' : '') + '.' +
+  // Costo aproximado (tabla de conversión × precio del año)
+  let costo = '';
+  try {
+    const m3 = ini !== null && finalMan !== null ? m3Recarga(sede.nombre, ini, finalMan) : null;
+    const precio = precioDe(leerPrecios(), rec.t);
+    if (m3 !== null) costo = '\n💰 Aprox. <b>' + miles(m3) + ' m³' + (precio ? ' · $' + miles(Math.round(m3 * precio / 1000) * 1000) : '') + '</b> (estimado; falta la factura)';
+  } catch (e) { Logger.log('Costo en remisión: ' + e.message); }
+  // El nivel ya va explicado abajo: aquí solo número, fecha y presión
+  const env = responderEnTema(msg, cab + leido.filter(function(x) { return x.indexOf('Nivel:') !== 0; }).join('\n') + '\n\n' +
+    '✅ <b>Recarga completa' + (ini !== null && finalMan !== null ? ': ' + num(ini) + ' → ' + num(finalMan) + ' pulg (' + signoTxt(finalMan - ini) + ')' : '') + '</b>' +
+    (espera ? '\n' + espera : '') +
     (notas.length ? '\n<i>' + notas.join(' ') + '</i>' : '') +
+    (costo ? '\n' + costo : '') +
     (d.confianza === 'baja' ? '\n⚠️ <i>La letra a mano no se veía muy clara; revisa los números.</i>' : '') +
-    '\n<i>Si leí algo mal, responde a este mensaje con lo correcto, por ejemplo: <code>remisión ' + d.numero + ' antes ' +
-    num(ini !== null ? ini : 11) + ' después ' + num(finalMan !== null ? finalMan : 74) + '</code></i>');
+    '\n\n<i>¿Leí algo mal? Responde a este mensaje así:</i> <code>remisión ' + d.numero + ' antes ' +
+    num(ini !== null ? ini : 11) + ' después ' + num(finalMan !== null ? finalMan : 74) + '</code>');
   if (env && env.ok) agregarIdBot(rec, env.result.message_id);
   return env;
+}
+
+/** Última lectura buena de la sede antes de un momento (la foto anterior a la recarga). */
+function ultimaLecturaAntes(sede, tMs) {
+  const L = leerLecturas().filter(function(l) {
+    return normalizar(l.sede) === normalizar(sede.nombre) && l.t < tMs - 60000 && l.nivel !== null && l.nivel !== '' &&
+      (l.estado === 'Automática' || l.estado === 'Corregida');
+  });
+  return L.length ? L[L.length - 1] : null;
 }
 
 /** Pone un chip de Drive en una celda de la pestaña Recargas. */
