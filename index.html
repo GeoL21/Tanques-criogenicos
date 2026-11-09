@@ -50,6 +50,9 @@ header p{margin:2px 0 0;font-size:12.5px;color:var(--sec)}
 .ks b{display:block;font-size:19px;font-weight:800}
 .ks small{font-size:12.5px;color:var(--sec)}
 .graf{width:100%;height:auto;display:block;touch-action:pan-y}
+.ritmos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.rt{border-radius:10px;padding:8px 10px;line-height:1.35}.rt small{display:block;font-size:11.5px;font-weight:600}.rt b{display:block;font-size:15px;font-weight:800}
+.rt.r7{background:var(--rosa);color:var(--vino)}.rt.r2{background:#E6F1FB;color:#0C447C}
 .gt .gsub{font-size:13px;color:var(--sec);margin:-6px 0 6px}
 .gbox{position:relative}
 .tip{position:absolute;z-index:2;background:#26181D;color:#fff;font-size:12.5px;line-height:1.4;border-radius:8px;padding:6px 9px;white-space:nowrap;pointer-events:none}
@@ -136,8 +139,8 @@ nav .ninst{display:none}
 .ejes{display:flex;gap:10px;padding:6px 4px 0}
 .ejes span{flex:1;text-align:center;font-size:12px;color:var(--sec);font-weight:600;line-height:1.3}
 .ejes span b{display:block;color:var(--txt);font-size:12px}
-.ley{display:flex;gap:14px;font-size:12.5px;color:var(--sec);margin-top:10px;font-weight:600}
-.ley i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+#barrasC .ley{display:flex;gap:14px;font-size:12.5px;color:var(--sec);margin-top:10px;font-weight:600}
+#barrasC .ley i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .cr .vl{font-weight:800;font-size:15px;white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right}
 .cr .vl small{font-weight:600;text-align:right}
 .tag.dif{background:var(--avisof);color:#8A5200}.tag.est{background:#F1EFE8;color:#5a5650}.tag.fac{background:var(--okf);color:#22694B}
@@ -532,6 +535,24 @@ function remisionesCard(){
 }
 
 /* Gráfica de un tanque: nivel en %, zona de recarga y pronóstico de cuándo llega a ella. */
+/* Ritmo con las dos últimas fotos de consumo: sin cruzar una recarga y separadas al menos 6 h
+   (cada foto puede fallar ±1 pulg; más cerca, el error se dispara). Si la última foto es la recarga,
+   se usan las dos de antes. Devuelve {ritmo (pulg/día), a, b} o null. */
+function ritmoDosFotos(pts){
+ let j=pts.length-1;if(j<1)return null;
+ if(pts[j].mov==='Recarga')j--;
+ let i=j-1;
+ while(i>=0){if(pts[i+1].mov==='Recarga'||pts[i+1].nivel-pts[i].nivel>=3)return null;if(pts[j].t-pts[i].t>=6*36e5)break;i--;}
+ if(i<0)return null;
+ const a=pts[i],b=pts[j],r=(a.nivel-b.nivel)/((b.t-a.t)/864e5);
+ return r>0.2?{ritmo:r,a,b}:null;
+}
+function ritmosHtml(r7,tR,r2,tR2){
+ if(!r2||!tR2)return '';
+ const fh=t=>fecha(t)+' '+hora(t);
+ return `<div class="ritmos"><div class="rt r7"><small>- - Promedio 7 días</small><b>${r7!=null?'−'+num(r7)+' pulg/día':'—'}</b><small>${tR?'llega ~'+fecha(tR):'—'}</small></div>
+ <div class="rt r2"><small>··· Últimas 2 fotos</small><b>−${num(r2.ritmo)} pulg/día</b><small>llega ~${fecha(tR2)}</small><small style="font-weight:500" title="${fh(r2.a.t)} → ${fh(r2.b.t)}">fotos del ${fecha(r2.a.t)} → ${fecha(r2.b.t)}</small></div></div>`;
+}
 function graficaTanque(s,dias){
  const ahora=Date.now(),desde=ahora-dias*864e5;
  const pts=lecturasDe(s.sede).filter(l=>valida(l)&&l.t>=desde).sort((a,b)=>a.t-b.t);
@@ -539,12 +560,17 @@ function graficaTanque(s,dias){
  const cab=`<h2>${esc(s.sede)}<small>${s.nivel!=null?'hoy '+num(s.nivel)+' pulg · '+s.pct+' %':''}</small></h2>`;
  if(!pts.length)return `<div class="card gt">${cab}<div class="vacio">La gráfica aparece con la primera lectura.</div></div>`;
  const tR=s.dias!=null&&s.dias<=45?s.ultimaT+s.dias*864e5:null;
+ const r2=s.nivel!=null&&s.nivel>s.aviso?ritmoDosFotos(pts):null;
+ const d2=r2?(s.nivel-s.aviso)/r2.ritmo:null,tR2=d2!=null&&d2<=45?s.ultimaT+d2*864e5:null;
+ const ritmo7=tR&&s.dias>0?(s.nivel-s.aviso)/s.dias:null;
  let sub;
  if(s.nivel!=null&&s.nivel<=s.aviso)sub='<span style="color:var(--mal);font-weight:700">Ya está en el nivel de recarga ('+s.aviso+' pulg).</span>';
+ else if(tR&&tR2&&fecha(tR)!==fecha(tR2)){const[p1,p2]=tR<tR2?[tR,tR2]:[tR2,tR],di=Math.min(s.dias,d2);
+  sub=`Llega a ${s.aviso} pulg entre el <b style="color:${di<=7?'#8A5200':'var(--txt)'}">~${fecha(p1)}</b> y el <b style="color:var(--txt)">~${fecha(p2)}</b>`;}
  else if(tR)sub=`Llega a ${s.aviso} pulg el <b style="color:${s.dias<=7?'#8A5200':'var(--txt)'}">~${fecha(tR)}</b> (en ~${num(s.dias,0)} días)`;
  else sub=pts.length<2?'El pronóstico aparece con la segunda lectura.':'El pronóstico aparece con unas 12 h de lecturas.';
  const chico=innerWidth<700,W=chico?360:600,H=chico?210:230,pl=36,pr=12,pt=12,pb=26,iw=W-pl-pr,ih=H-pt-pb;
- const t0=Math.max(desde,Math.min(pts[0].t-864e5,ahora-3*864e5)),fin=Math.max(ahora,tR||0),t1=fin+(fin-t0)*0.04;
+ const t0=Math.max(desde,Math.min(pts[0].t-864e5,ahora-3*864e5)),fin=Math.max(ahora,tR||0,tR2||0),t1=fin+(fin-t0)*0.04;
  const x=t=>pl+(t-t0)/(t1-t0)*iw,y=v=>pt+ih-v/100*ih;
  const ya=y(pc(s.aviso));
  let g=`<rect x="${pl}" y="${ya}" width="${iw}" height="${y(0)-ya}" fill="#FBE3E0"/>`;
@@ -557,12 +583,14 @@ function graficaTanque(s,dias){
  }
  const u=pts[pts.length-1];
  if(tR&&s.nivel>s.aviso){g+=`<line x1="${x(u.t)}" y1="${y(pc(u.nivel))}" x2="${x(tR)}" y2="${ya}" stroke="#6A1B3A" stroke-width="2" stroke-dasharray="5 5"/><circle cx="${x(tR)}" cy="${ya}" r="5" fill="#fff" stroke="#B3261E" stroke-width="2.5"/><text x="${Math.min(x(tR),W-pr-22)}" y="${ya+20}" font-size="12" font-weight="700" fill="#9B2C1F" text-anchor="middle">~${fecha(tR)}</text>`;}
+ if(tR2&&s.nivel>s.aviso){const lab=Math.min(x(tR2),W-pr-22),choca=tR&&Math.abs(x(tR)-x(tR2))<46;
+  g+=`<line x1="${x(u.t)}" y1="${y(pc(u.nivel))}" x2="${x(tR2)}" y2="${ya}" stroke="#185FA5" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"/><circle cx="${x(tR2)}" cy="${ya}" r="5" fill="#fff" stroke="#185FA5" stroke-width="2.5"/>${choca?'':`<text x="${lab}" y="${ya-9}" font-size="12" font-weight="700" fill="#0C447C" text-anchor="middle">~${fecha(tR2)}</text>`}`;}
  pts.forEach(p=>{if(p.mov==='Recarga')g+=`<circle cx="${x(p.t).toFixed(1)}" cy="${y(pc(p.nivel)).toFixed(1)}" r="5" fill="#2E7D5B" stroke="#fff" stroke-width="1.5"/>`;});
  g+=`<circle cx="${x(u.t)}" cy="${y(pc(u.nivel))}" r="5" fill="#6A1B3A" stroke="#fff" stroke-width="2"/>`;
  const n=chico?3:4;for(let i=0;i<n;i++){const t=t0+(fin-t0)*i/(n-1),ul=i===n-1;g+=`<text x="${x(t)}" y="${H-7}" font-size="11" fill="#8a7680" text-anchor="${i===0?'start':ul?'end':'middle'}">${ul&&!tR?'hoy':fecha(t)}</text>`;}
  g+=`<g class="cur" style="display:none"><line y1="${pt}" y2="${y(0)}" stroke="#26181D" stroke-dasharray="2 3" opacity=".5"/><circle r="5" fill="#fff" stroke="#6A1B3A" stroke-width="2.5"/></g>`;
  const datos=pts.map((p,i)=>({x:+x(p.t).toFixed(1),y:+y(pc(p.nivel)).toFixed(1),t:p.t,v:p.nivel,c:i?p.nivel-pts[i-1].nivel:null,r:p.mov==='Recarga'}));
- return `<div class="card gt" data-p='${JSON.stringify(datos)}' data-cap="${s.capacidad}" data-w="${W}">${cab}<div class="gsub">${sub}</div><div class="gbox"><svg class="graf" viewBox="0 0 ${W} ${H}" role="img" aria-label="Nivel del tanque ${esc(s.sede)} en los últimos días" onpointermove="cursor(event,this)" onpointerdown="cursor(event,this)" onpointerleave="cursorFuera(this)">${g}</svg><div class="tip" hidden></div></div><div class="ley"><span><i style="background:#6A1B3A"></i>Nivel</span><span><i style="background:#2E7D5B;border-radius:50%"></i>Recarga</span><span><i style="background:#FBE3E0;border:1px solid #E7B8B2"></i>Zona de recarga</span>${tR?'<span><i style="background:none;border-top:2px dashed #6A1B3A;height:0;vertical-align:3px"></i>Pronóstico</span>':''}</div></div>`;
+ return `<div class="card gt" data-p='${JSON.stringify(datos)}' data-cap="${s.capacidad}" data-w="${W}">${cab}<div class="gsub">${sub}</div><div class="gbox"><svg class="graf" viewBox="0 0 ${W} ${H}" role="img" aria-label="Nivel del tanque ${esc(s.sede)} en los últimos días" onpointermove="cursor(event,this)" onpointerdown="cursor(event,this)" onpointerleave="cursorFuera(this)">${g}</svg><div class="tip" hidden></div></div><div class="ley"><span><i style="background:#6A1B3A"></i>Nivel</span><span><i style="background:#2E7D5B;border-radius:50%"></i>Recarga</span><span><i style="background:#FBE3E0;border:1px solid #E7B8B2"></i>Zona de recarga</span>${tR?'<span><i style="background:none;border-top:2px dashed #6A1B3A;height:0;vertical-align:3px"></i>Pronóstico</span>':''}</div>${ritmosHtml(ritmo7,tR,r2,tR2)}</div>`;
 }
 /* Valor exacto al pasar el dedo o el ratón */
 function cursor(e,svg){
