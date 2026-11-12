@@ -463,6 +463,7 @@ function pintar(){
  if(!D){const sk='<div class="card"><div class="sk" style="width:40%"></div><div class="sk" style="height:46px;width:55%"></div><div class="sk"></div></div>';
   $('topR').innerHTML=sk+sk;$('grafR').innerHTML=sk;$('ultR').innerHTML='<div class="sk"></div><div class="sk"></div>';$('lstL').innerHTML=$('lstRc').innerHTML=$('lstC').innerHTML='<div class="sk"></div><div class="sk"></div>';return;}
  if(!D.sedes.some(s=>s.sede===sede))sede=D.sedes[0].sede;
+ ajustar48();
  ['segL','segRc'].forEach(id=>$(id).innerHTML=segHtml());
  const orden={mal:0,av:1,ok:2,nd:3};$('topR').innerHTML=D.sedes.slice().sort((a,b)=>orden[semaforo(a)]-orden[semaforo(b)]).map(tanqueCard).join('')+proximaCard()+remisionesCard();
  $('grafR').innerHTML=D.sedes.map(s=>graficaTanque(s,30)).join('');
@@ -474,10 +475,30 @@ function pintar(){
 
 const COLOR={ok:'#2E7D5B',av:'#C77700',mal:'#B3261E'};
 /* Bien / Pronto / Recargar */
+/* Días para recargar con el consumo de las últimas 48 h (sin contar recargas; hace falta al menos 12 h
+   de datos). Así el color no salta por varias fotos seguidas ni por una lectura con error. */
+function prom48(pts,fin){
+ const desde=fin-48*36e5;let baja=0,h=0;
+ for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i];if(b.t<desde||b.t>fin)continue;
+  const ini=Math.max(a.t,desde),hh=(b.t-ini)/36e5;if(hh<=0)continue;const c=b.nivel-a.nivel;if(c>=3)continue;
+  baja+=Math.max(0,-c)*(b.t-ini)/(b.t-a.t);h+=hh;}
+ return h<12?null:baja/h*24;
+}
+function ajustar48(){
+ if(!D)return;
+ D.sedes.forEach(s=>{if(s.nivel==null||!s.ultimaT)return;
+  const pts=lecturasDe(s.sede).filter(valida).sort((a,b)=>a.t-b.t),p=prom48(pts,s.ultimaT);
+  s.prom48=p;if(p==null)return;
+  s.ritmoAlto=s.reciente!=null&&s.reciente>0.5&&s.reciente>p*1.5;
+  const r=s.ritmoAlto?s.reciente:p;
+  s.dias=r>0.2&&s.nivel>s.aviso?(s.nivel-s.aviso)/r:null;});
+}
+/* Verde: más del 90 % o más de 2 días. Naranja: 2 días o menos. Rojo: en el nivel de recarga (o a menos de 1 día). */
 function semaforo(s){
  if(s.nivel==null)return 'nd';
  if(s.nivel<=s.aviso||(s.dias!=null&&s.dias<1))return 'mal';
- if(s.dias!=null)return s.dias<=7?'av':'ok';
+ if(s.pct!=null&&s.pct>90)return 'ok';
+ if(s.dias!=null)return s.dias<=2?'av':'ok';
  return s.nivel<=s.aviso+(s.capacidad-s.aviso)*0.25?'av':'ok';
 }
 function tanqueCard(s){
@@ -485,7 +506,7 @@ function tanqueCard(s){
  if(s.nivel==null)return `<div class="card tc">${tanque(0,'#B98AA0',s.aviso/s.capacidad*100,false,'')}<div class="tx"><div class="sd">${esc(s.sede)}</div><div class="ex">Aún no hay lecturas. Se llenan solas cuando el técnico sube la foto del manómetro al tema <b>Fotos del tanque ${esc(s.sede)}</b> en Telegram.</div></div></div>`;
  const c=semaforo(s),buenas=L.filter(valida),ult=buenas[0],dud=L.filter(l=>l.estado==='Dudosa'&&l.t>(ult?ult.t:0));
  const pctAviso=Math.min(100,s.aviso/s.capacidad*100),urg=c==='mal';
- const ritmo=s.ritmoAlto&&s.reciente?s.reciente:s.prom7;
+ const ritmo=s.ritmoAlto&&s.reciente?s.reciente:(s.prom48!=null?s.prom48:s.prom7);
  let pill='',cuenta='';
  if(s.nivel<=s.aviso){if(ritmo)cuenta=`<div class="vacia">Al ritmo actual se <b style="display:inline;font-size:inherit">vacía</b> en<b>~${num(s.nivel/ritmo*24,0)} h</b></div>`;else pill='<span class="pill mal">Necesita recarga</span>';}
  else if(s.dias!=null&&s.dias<1)cuenta=`<div class="vacia">Llega al nivel de recarga en<b>~${num(s.dias*24,0)} h</b></div>`;
@@ -495,6 +516,7 @@ function tanqueCard(s){
  else pill='<span class="pill nd">Los días para recargar salen con unas 12 h de lecturas</span>';
  const ex=[];
  if(s.ritmoAlto&&s.reciente!=null)ex.push('<b style="color:var(--mal)">Consumo alto: −'+num(s.reciente)+' pulg/día</b> (últimas horas)');
+ else if(s.prom48!=null)ex.push('Consumo −'+num(s.prom48)+' pulg/día (últimas 48 h)');
  else if(s.prom7!=null)ex.push('Consumo −'+num(s.prom7)+' pulg/día');
  else if(ult&&ult.cambio!=null&&ult.mov!=='Recarga')ex.push('Última lectura '+signo(ult.cambio)+' pulg');
  if(s.recargaT)ex.push('última recarga '+fecha(s.recargaT)+' ('+signo(s.recargaCambio)+')');
@@ -524,7 +546,7 @@ function proximaCard(){
  const ya=con.filter(s=>s.nivel<=s.aviso);
  if(ya.length)return `<div class="card kp"><div class="k">Próxima recarga</div><b style="color:var(--mal)">${ya.map(s=>esc(s.sede)).join(' y ')}</b><small>ya está en el nivel de recarga</small></div>`;
  const cd=con.filter(s=>s.dias!=null).sort((a,b)=>a.dias-b.dias)[0];
- if(cd){const t=Date.now()+cd.dias*864e5;return `<div class="card kp"><div class="k">Próxima recarga</div><b style="color:${cd.dias<=7?'#8A5200':'#22694B'}">${esc(cd.sede)}</b><small>llega a ${cd.aviso} pulg ~${fecha(t)}</small></div>`;}
+ if(cd){const t=Date.now()+cd.dias*864e5;return `<div class="card kp"><div class="k">Próxima recarga</div><b style="color:${cd.dias<=2&&cd.pct<=90?'#8A5200':'#22694B'}">${esc(cd.sede)}</b><small>llega a ${cd.aviso} pulg ~${fecha(t)}</small></div>`;}
  return `<div class="card kp"><div class="k">Próxima recarga</div><b style="color:var(--sec);font-size:16px">Aún sin calcular</b><small>Se calcula con unas 12 h de lecturas de cada tanque.</small></div>`;
 }
 function remisionesCard(){
@@ -550,7 +572,7 @@ function ritmoDosFotos(pts){
 function ritmosHtml(r7,tR,r2,tR2){
  if(!r2||!tR2)return '';
  const fh=t=>fecha(t)+' '+hora(t);
- return `<div class="ritmos"><div class="rt r7"><small>- - Promedio 7 días</small><b>${r7!=null?'−'+num(r7)+' pulg/día':'—'}</b><small>${tR?'llega ~'+fecha(tR):'—'}</small></div>
+ return `<div class="ritmos"><div class="rt r7"><small>- - Últimas 48 h</small><b>${r7!=null?'−'+num(r7)+' pulg/día':'—'}</b><small>${tR?'llega ~'+fecha(tR):'—'}</small></div>
  <div class="rt r2"><small>··· Últimas 2 fotos</small><b>−${num(r2.ritmo)} pulg/día</b><small>llega ~${fecha(tR2)}</small><small style="font-weight:500" title="${fh(r2.a.t)} → ${fh(r2.b.t)}">fotos del ${fecha(r2.a.t)} → ${fecha(r2.b.t)}</small></div></div>`;
 }
 function graficaTanque(s,dias){
@@ -566,8 +588,8 @@ function graficaTanque(s,dias){
  let sub;
  if(s.nivel!=null&&s.nivel<=s.aviso)sub='<span style="color:var(--mal);font-weight:700">Ya está en el nivel de recarga ('+s.aviso+' pulg).</span>';
  else if(tR&&tR2&&fecha(tR)!==fecha(tR2)){const[p1,p2]=tR<tR2?[tR,tR2]:[tR2,tR],di=Math.min(s.dias,d2);
-  sub=`Llega a ${s.aviso} pulg entre el <b style="color:${di<=7?'#8A5200':'var(--txt)'}">~${fecha(p1)}</b> y el <b style="color:var(--txt)">~${fecha(p2)}</b>`;}
- else if(tR)sub=`Llega a ${s.aviso} pulg el <b style="color:${s.dias<=7?'#8A5200':'var(--txt)'}">~${fecha(tR)}</b> (en ~${num(s.dias,0)} días)`;
+  sub=`Llega a ${s.aviso} pulg entre el <b style="color:${di<=2?'#8A5200':'var(--txt)'}">~${fecha(p1)}</b> y el <b style="color:var(--txt)">~${fecha(p2)}</b>`;}
+ else if(tR)sub=`Llega a ${s.aviso} pulg el <b style="color:${s.dias<=2?'#8A5200':'var(--txt)'}">~${fecha(tR)}</b> (en ~${num(s.dias,0)} días)`;
  else sub=pts.length<2?'El pronóstico aparece con la segunda lectura.':'El pronóstico aparece con unas 12 h de lecturas.';
  const chico=innerWidth<700,W=chico?360:600,H=chico?210:230,pl=36,pr=12,pt=12,pb=26,iw=W-pl-pr,ih=H-pt-pb;
  const t0=Math.max(desde,Math.min(pts[0].t-864e5,ahora-3*864e5)),fin=Math.max(ahora,tR||0,tR2||0),t1=fin+(fin-t0)*0.04;

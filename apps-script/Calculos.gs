@@ -11,9 +11,11 @@ const REGLAS = {
   mantuvoMax: 1,      // cambiar 1 pulg o menos = se mantuvo
   margenCapacidad: 8, // se acepta hasta capacidad + 8 (la aguja puede pasar un poco)
   diasPromedio: 7,
-  diasPronto: 7,
+  diasPronto: 2,      // faltan 2 días o menos para el nivel de recarga = "Recarga pronto" (naranja)
+  diasEstimar: 2,     // los días para recargar se calculan con el consumo de las últimas 48 h (sin recargas)
+  pctVerde: 90,       // por encima del 90 % el tanque siempre está "bien" (verde)
   horasRitmo: 6,      // ventana para el "ritmo reciente" (consumo de las últimas horas)
-  ritmoAlto: 1.5,     // si el ritmo reciente supera 1,5 veces el promedio, se usa para estimar      // faltan 7 días o menos para el nivel de recarga = "Recarga pronto"
+  ritmoAlto: 1.5,     // si el ritmo reciente supera 1,5 veces el de 48 h, se usa para estimar
   minutosRepetida: 30 // otra foto del mismo tanque antes de 30 min reemplaza a la anterior
 };
 
@@ -129,7 +131,7 @@ function ritmoReciente(lecturas, ahoraMs, horas) {
   return Math.max(0, -(sxy / sxx) * 24);
 }
 
-/** Decide con qué ritmo se estima: el promedio de 7 días, o el reciente si es mucho más alto. */
+/** Decide con qué ritmo se estima: el de las últimas 48 h, o el reciente si es mucho más alto. */
 function ritmoParaEstimar(promedio, reciente) {
   const alto = reciente !== null && reciente > 0.5 && (promedio === null || reciente > promedio * REGLAS.ritmoAlto);
   return { ritmo: alto ? reciente : promedio, alto: alto };
@@ -171,8 +173,10 @@ function analizar(nueva, previas, recargas, sede) {
     // El promedio de antes de la recarga es el que sirve para estimar.
     r.promedio = promedioConsumo(previas, ant.t, REGLAS.diasPromedio);
   }
+  // Ritmo para estimar: consumo de las últimas 48 h (si hay al menos 12 h de datos); si no, el de 7 días.
+  const p48 = r.movimiento === 'Recarga' ? null : promedioConsumo(serie, nueva.t, REGLAS.diasEstimar);
   r.reciente = r.movimiento === 'Recarga' ? null : ritmoReciente(serie, nueva.t);
-  const rt = ritmoParaEstimar(r.promedio, r.reciente);
+  const rt = ritmoParaEstimar(p48 !== null ? p48 : r.promedio, r.reciente);
   r.ritmoAlto = rt.alto;
   // Con consumo alto y fotos seguidas, una bajada pequeña también es consumo (no "se mantuvo")
   if (r.ritmoAlto && r.movimiento === 'Se mantuvo' && r.cambio < 0) r.movimiento = 'Consumo';
@@ -235,11 +239,11 @@ function reporte(sede, a, tMs, partes, motivoDudosa, lecturaAprox, revisar) {
   if (a.bajoNivel) {
     L.push('⚠️ <b>En el nivel de recarga o por debajo (' + sede.aviso + ' pulg).</b> Necesita recarga.');
   } else if (a.diasHastaRecarga !== null) {
-    const ritmo = a.ritmoAlto ? 'al ritmo actual' : 'al ritmo promedio';
+    const ritmo = a.ritmoAlto ? 'al ritmo actual' : 'al ritmo de las últimas 48 h';
     const cuando = cuandoLlega(a.diasHastaRecarga, tMs, partes);
     if (a.diasHastaRecarga < 1) {
       L.push('🔴 <b>Recarga urgente:</b> ' + ritmo + ' llega a ' + sede.aviso + ' pulg en ' + cuando + '. Avisar a Messer o a la administración.');
-    } else if (a.diasHastaRecarga <= REGLAS.diasPronto) {
+    } else if (a.diasHastaRecarga <= REGLAS.diasPronto && a.pct <= REGLAS.pctVerde) {
       L.push('🟠 <b>Recarga pronto:</b> ' + ritmo + ' llega a ' + sede.aviso + ' pulg en ' + cuando + '.');
     } else {
       L.push(ritmo.charAt(0).toUpperCase() + ritmo.slice(1) + ' llega a ' + sede.aviso + ' pulg en ' + cuando + '.');

@@ -4,7 +4,7 @@ Registro automático del nivel de los tanques criogénicos de Barranquilla y Bar
 
 1. El técnico sube la foto del manómetro de nivel al tema de su sede en el grupo de Telegram **Gases Medicinales**.
 2. El bot **Tanque criogenico** la recoge (cada 5 minutos). Gemini **ubica** en la foto el eje, la punta de la aguja y las marcas con número; el código calcula el ángulo y lo convierte en pulgadas (más preciso que pedirle a la IA el número). La lectura queda en la hoja **Tanques criogénicos** (cuenta cilindrocrc).
-3. El bot responde debajo de la foto con el reporte: nivel, consumo o recarga, promedio de 7 días y cuántos días faltan para el nivel de recarga.
+3. El bot responde debajo de la foto con el reporte: nivel, consumo o recarga, promedio de 7 días y cuántos días faltan para el nivel de recarga (calculado con el consumo de las últimas 48 h).
 4. Este repositorio es el **tablero (PWA)** para consultar todo desde el celular o el PC.
 
 | Sede | Capacidad | Escala del manómetro | Nivel de recarga |
@@ -56,5 +56,9 @@ Si el bot responde que no sabe de qué tanque es el tema, escribir en ese tema `
 - Lectura **Dudosa** o mal leída: escribir el nivel correcto en *Nivel (pulg)*. La fila pasa sola a **Corregida** y todo se recalcula en unos segundos.
 - Si un técnico manda otra foto del mismo tanque antes de 30 minutos, la nueva **reemplaza** a la anterior (queda como *Reemplazada* y no cuenta en los cálculos).
 - A las 7:00 a. m. el bot avisa en el tema si un tanque lleva más de 24 horas sin foto.
-- **Recarga pronto**: cuando faltan 7 días o menos para el nivel de recarga, el reporte lo resalta en naranja.
+- **Colores del tanque** (tablero y reporte):
+  - Verde: por encima del 90 %, o faltan más de 2 días para el nivel de recarga.
+  - Naranja (**Recarga pronto**): faltan 2 días o menos. Es el tiempo que necesita Messer.
+  - Rojo: en el nivel de recarga o a menos de 1 día.
+  - Los días se calculan con el consumo de las **últimas 48 h**, sin contar recargas (hacen falta unas 12 h de lecturas). Si en las últimas horas el consumo es mucho más alto, se usa ese.
 - Para cambiar capacidad o nivel de recarga: pestaña **Config**.

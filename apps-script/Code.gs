@@ -1495,15 +1495,17 @@ function resumenSede(sede, lecturas) {
   const ultRec = rec.length ? rec[rec.length - 1] : null;
   const p7 = promedioConsumo(serie, ahora, 7);
   const p30 = promedioConsumo(serie, ahora, 30);
+  const p48 = ult ? promedioConsumo(serie, ult.t, REGLAS.diasEstimar) : null;
   const reciente = ult ? ritmoReciente(serie, ult.t) : null;
-  const rt = ritmoParaEstimar(p7, reciente);
+  const rt = ritmoParaEstimar(p48 !== null ? p48 : p7, reciente);
   const dias = ult && rt.ritmo && rt.ritmo > 0.2 && ult.nivel > sede.aviso ? (ult.nivel - sede.aviso) / rt.ritmo : null;
-  const estado = !ult ? 'Sin lecturas' : (ult.nivel <= sede.aviso ? 'Necesita recarga' :
+  const lleno = ult && porcentaje(ult.nivel, sede.capacidad) > REGLAS.pctVerde;
+  const estado = !ult ? 'Sin lecturas' : (ult.nivel <= sede.aviso ? 'Necesita recarga' : lleno ? 'Normal' :
     (dias !== null && dias < 1 ? 'Recarga urgente' : (dias !== null && dias <= REGLAS.diasPronto ? 'Recarga pronto' : 'Normal')));
   return {
     sede: sede.nombre, capacidad: sede.capacidad, escala: sede.escala, aviso: sede.aviso,
     nivel: ult ? ult.nivel : null, pct: ult ? porcentaje(ult.nivel, sede.capacidad) : null, ultimaT: ult ? ult.t : null,
-    prom7: p7, prom30: p30, recargaT: ultRec ? ultRec.t : null, recargaCambio: ultRec ? ultRec.cambio : null,
+    prom7: p7, prom30: p30, prom48: p48, recargaT: ultRec ? ultRec.t : null, recargaCambio: ultRec ? ultRec.cambio : null,
     dias: dias, estado: estado, reciente: reciente, ritmoAlto: rt.alto
   };
 }
