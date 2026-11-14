@@ -487,6 +487,29 @@ function manejarMensaje(msg) {
     archivo.setName('Remision_' + sede.nombre + '_' + Utilities.formatDate(new Date(tMs), tz, 'yyyy-MM-dd_HHmm') + '.jpg');
     return manejarFotoRemision(msg, sede, blob, archivo, tMs);
   }
+
+  // ¿Foto del manómetro de otra sede? No cuenta, no reemplaza la lectura anterior ni crea recargas.
+  const otraSede = manometroDeOtraSede(ia, sede);
+  if (otraSede) {
+    const tecnicoO = [msg.from && msg.from.first_name, msg.from && msg.from.last_name].filter(Boolean).join(' ');
+    const idO = 'T-' + Utilities.formatDate(new Date(tMs), tz, 'yyyyMMdd-HHmmss') + '-' + sede.nombre.slice(0, 3).toUpperCase();
+    agregarFila({
+      'ID': idO,
+      'Fecha y hora': new Date(tMs),
+      'Sede': sede.nombre,
+      'Movimiento': 'Sin lectura',
+      'Lectura': 'Descartada',
+      'Técnico': tecnicoO,
+      'Foto': archivo.getUrl(),
+      'Nota de la lectura': otraSede === 'otro' ? 'Descartada por el bot: la foto no parece del manómetro de ' + sede.nombre + '.'
+        : 'Descartada por el bot: foto del tanque de ' + otraSede + ' subida en el tema de ' + sede.nombre + '.',
+      'ID del mensaje': msgId,
+      'ID de la foto': archivo.getId()
+    });
+    guardarReporte(responderEnTema(msg, textoOtraSede(msg, sede, otraSede)), idO); // /corregir respondiendo aquí la cuenta
+    return;
+  }
+
   const val = validarLectura(ia, sede);
   const aguja = val.valida ? Math.round(Number(ia.lectura) * 10) / 10 : null;
   const nivel = aguja === null ? null : Math.min(aguja, sede.capacidad);
@@ -558,6 +581,15 @@ function reintentarPendientes() {
     const ia = leerManometro(DriveApp.getFileById(l.fotoId).getBlob(), sede);
     const vencida = Date.now() - l.t > HORAS_REINTENTO * 3600000;
     if (ia.errorIA && !vencida) return; // sigue sin IA: se intenta en la próxima revisión
+    const otraR = manometroDeOtraSede(ia, sede);
+    if (otraR) {
+      poner(l.fila, 'Lectura', 'Descartada');
+      poner(l.fila, 'Nota de la lectura', otraR === 'otro' ? 'Descartada por el bot: la foto no parece del manómetro de ' + sede.nombre + '.'
+        : 'Descartada por el bot: foto del tanque de ' + otraR + ' subida en el tema de ' + sede.nombre + '.');
+      const idsR = l.msgId.split(':');
+      if (idsR.length === 2 && sede.tema) responderEnTema({ chat: { id: idsR[0] }, message_id: Number(idsR[1]), is_topic_message: true, message_thread_id: Number(sede.tema) }, textoOtraSede(null, sede, otraR));
+      return;
+    }
     const val = ia.errorIA ? { valida: false, motivo: 'La IA de Google no respondió en 24 horas. Revisa la foto y escribe el nivel a mano.' } : validarLectura(ia, sede);
     const aguja = val.valida ? Math.round(Number(ia.lectura) * 10) / 10 : null;
     const nivel = aguja === null ? null : Math.min(aguja, sede.capacidad);
@@ -1128,8 +1160,12 @@ function leerManometro(blob, sede) {
     '3) "marcas": TODAS las marcas largas de la escala que tengan número impreso y se vean. Para cada una, su "valor" ' +
     'y el "punto" exactamente sobre la RAYA de la escala (en el anillo de rayas), no sobre el número.\n' +
     '4) "lectura": tu estimación de lo que marca (solo para comparar).\n' +
+    'Anota en "marcas" los números TAL COMO ESTÁN IMPRESOS, aunque no coincidan con la escala descrita arriba.\n' +
+    '5) "tanque": a veces suben por error la foto del manómetro de otra sede. Estos son los manómetros que existen:\n' +
+    otrosManometros() +
+    'Responde en "tanque" el nombre de la sede cuyo manómetro se ve en la foto, u "otro" si no es ninguno.\n' +
     'Si la foto NO es un manómetro sino un documento (remisión o factura de Messer), responde solo {"es_manometro": false, "es_remision": true}.\n' +
-    'Responde SOLO este JSON: {"es_manometro": true/false, "centro": [y, x], "punta": [y, x], ' +
+    'Responde SOLO este JSON: {"es_manometro": true/false, "tanque": "nombre de la sede", "centro": [y, x], "punta": [y, x], ' +
     '"marcas": [{"valor": número, "punto": [y, x]}, ...], "lectura": número o null, ' +
     '"confianza": "alta" | "media" | "baja", "motivo": "frase corta en español"}.\n' +
     'Usa confianza "baja" si la aguja no se ve clara, hay reflejo sobre ella o no estás seguro de la escala.';
@@ -1137,6 +1173,47 @@ function leerManometro(blob, sede) {
   if (ia.errorIA) return { es_manometro: true, lectura: null, confianza: 'baja', errorIA: true, motivo: ia.motivo };
   if (ia.es_remision === true && ia.es_manometro !== true) return ia;
   return aplicarGeometria(ia, blob, sede);
+}
+
+/** Lista de los manómetros de todas las sedes, para que la IA diga de cuál es la foto. */
+function otrosManometros() {
+  return leerSedes().map(function(s) {
+    return '- ' + s.nombre + ': ' + (DESCRIPCION_MANOMETRO[normalizar(s.nombre)] || ('escala de 0 a ' + s.escala + ' pulgadas.')) + '\n';
+  }).join('');
+}
+
+/**
+ * ¿La foto es del manómetro de OTRA sede? (por ejemplo, la foto de Barranquilla subida en el tema de Baranoa).
+ * 1) Por la escala: si se ven números impresos más altos que la escala de esta sede, no es su manómetro.
+ * 2) Por la carátula: si la IA reconoce el manómetro de otra sede.
+ * Devuelve el nombre de la otra sede, 'otro', o null si la foto sí es de esta sede.
+ */
+function manometroDeOtraSede(ia, sede) {
+  if (!ia || ia.errorIA || ia.es_manometro === false) return null;
+  const sedes = leerSedes();
+  const valores = (ia.marcas || []).map(function(m) { return Number(m && m.valor); }).filter(function(v) { return !isNaN(v); });
+  const max = valores.length ? Math.max.apply(null, valores) : null;
+  if (max !== null && max > sede.escala * 1.1) {
+    const otra = sedes.filter(function(s) { return normalizar(s.nombre) !== normalizar(sede.nombre) && s.escala >= max; })[0];
+    return otra ? otra.nombre : 'otro';
+  }
+  const dice = normalizar(ia.tanque);
+  if (dice && dice !== normalizar(sede.nombre)) {
+    const otra = sedes.filter(function(s) { return normalizar(s.nombre) === dice; })[0];
+    if (otra) return otra.nombre;
+  }
+  return null;
+}
+
+/** Texto del bot cuando la foto es del manómetro de otra sede. */
+function textoOtraSede(msg, sede, otra) {
+  const quien = msg && msg.from && msg.from.first_name ? escaparHtml(msg.from.first_name) + ', e' : 'E';
+  if (otra === 'otro') {
+    return '⚠️ <b>' + quien + 'sta foto no parece del manómetro de ' + sede.nombre + '.</b>\n' +
+      'No la conté. Si sí es de este tanque, responde a este mensaje con <code>/corregir</code> y el número que marca.';
+  }
+  return '⚠️ <b>' + quien + 'sta foto parece del tanque de ' + otra + '</b>, no del de ' + sede.nombre + '.\n' +
+    'No la conté para ' + sede.nombre + '. Súbela en el tema <b>Fotos del tanque ' + otra + '</b>.';
 }
 
 /**
