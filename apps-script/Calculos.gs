@@ -16,7 +16,9 @@ const REGLAS = {
   pctVerde: 90,       // por encima del 90 % el tanque siempre está "bien" (verde)
   horasRitmo: 6,      // ventana para el "ritmo reciente" (consumo de las últimas horas)
   ritmoAlto: 1.5,     // si el ritmo reciente supera 1,5 veces el de 48 h, se usa para estimar
-  minutosRepetida: 30 // otra foto del mismo tanque antes de 30 min reemplaza a la anterior
+  minutosRepetida: 30, // otra foto del mismo tanque antes de 30 min reemplaza a la anterior
+  recargaMinima: 10,  // una subida menor de 10 pulg no se toma como recarga: se pide confirmar
+  toleranciaEsperado: 6 // si la lectura se aleja más de 6 pulg (+25 % de lo que debía bajar) de lo esperado, se pide confirmar
 };
 
 const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -138,6 +140,63 @@ function ritmoParaEstimar(promedio, reciente) {
 }
 
 /**
+ * Cuánto debería marcar el tanque en tMs según la última lectura y el consumo
+ * (últimas 48 h; si no alcanza, 7 días). null si no hay datos suficientes o la última lectura es muy vieja.
+ */
+function esperadoEn(previas, tMs) {
+  if (!previas || !previas.length) return null;
+  const ult = previas[previas.length - 1];
+  const h = (tMs - ult.t) / 3600000;
+  if (h <= 0 || h > 96) return null;
+  let r = promedioConsumo(previas, ult.t, REGLAS.diasEstimar);
+  if (r === null) r = promedioConsumo(previas, ult.t, REGLAS.diasPromedio);
+  if (r === null) return null;
+  const baja = r * h / 24;
+  return { nivel: ult.nivel - baja, tolerancia: REGLAS.toleranciaEsperado + baja * 0.25 };
+}
+
+/**
+ * Revisa una lectura nueva contra el consumo:
+ * - Si el cálculo por ángulo y la lupa no coinciden, se queda con el más cercano a lo esperado.
+ * - Una subida de 3 a 10 pulg no es recarga: se pide confirmar.
+ * - Si se aleja mucho de lo esperado (y no es una recarga grande), se pide confirmar.
+ * Devuelve { lectura, nota, revisar } (revisar = null si la lectura está bien).
+ */
+function ajustarConConsumo(ia, previas, tMs, sede) {
+  const leida = Number(ia.lectura);
+  const esp = esperadoEn(previas, tMs);
+  let elegida = leida, nota = '';
+  const calc = ia.lectura_calc, lupa = ia.lectura_lupa;
+  if (esp && calc !== undefined && calc !== null && lupa !== undefined && lupa !== null && Math.abs(calc - lupa) >= 0.5) {
+    // La lupa suele acertar más: se usa salvo que el cálculo quede claramente (3 pulg o más) más cerca de lo esperado
+    elegida = Math.abs(calc - esp.nivel) + 3 <= Math.abs(lupa - esp.nivel) ? calc : lupa;
+    if (elegida !== leida) {
+      nota = 'Se usó ' + (elegida === lupa ? 'la lupa' : 'el cálculo') + ' (' + num(elegida) + '), más cerca de lo esperado (~' + num(esp.nivel) + ').';
+    }
+  }
+  const ant = previas && previas.length ? previas[previas.length - 1].nivel : null;
+  if (ant !== null) {
+    const n = Math.min(elegida, sede.capacidad);
+    const cambio = n - ant;
+    if (cambio >= REGLAS.recargaMin && cambio < REGLAS.recargaMinima) {
+      return { lectura: elegida, nota: nota, revisar: { leido: n, esperado: esp ? esp.nivel : ant, subida: cambio } };
+    }
+    if (esp && cambio < REGLAS.recargaMinima && Math.abs(n - esp.nivel) > esp.tolerancia) {
+      return { lectura: elegida, nota: nota, revisar: { leido: n, esperado: esp.nivel } };
+    }
+  }
+  return { lectura: elegida, nota: nota, revisar: null };
+}
+
+/** Nota para la hoja cuando la lectura no cuadra con el consumo. */
+function textoRevisarConsumo(r) {
+  if (r.subida !== undefined) {
+    return 'Revisar: leí ' + num(r.leido) + ' (subió ' + conSigno(r.subida) + ' pulg); una recarga sube más. No se tomó como recarga.';
+  }
+  return 'Revisar: leí ' + num(r.leido) + ' y según el consumo debería marcar ~' + num(r.esperado, 0) + '.';
+}
+
+/**
  * Calcula todo lo de una lectura nueva.
  * nueva: { t, nivel } (nivel null si no fue válida)
  * previas: lecturas válidas de la sede (orden cronológico) ANTES de la nueva.
@@ -194,6 +253,19 @@ function reporte(sede, a, tMs, partes, motivoDudosa, lecturaAprox, revisar) {
   const L = [];
   L.push('<b>Tanque ' + sede.nombre + '</b> · ' + fechaCorta(partes(tMs)));
   // El cálculo por ángulo y la estimación de la IA no coinciden: se pide confirmar el valor calculado
+  // La lectura no cuadra con el consumo (o es una subida pequeña): se pide confirmar
+  if (revisar && revisar.leido !== undefined) {
+    const esp = num(Math.max(0, revisar.esperado), 0);
+    if (revisar.subida !== undefined) {
+      L.push('⚠️ <b>Revisa esta lectura:</b> leí <b>' + num(revisar.leido) + ' pulg</b>, una subida de ' + conSigno(revisar.subida) +
+        ' pulg desde la anterior. Una recarga sube más, así que no la conté como recarga.');
+    } else {
+      L.push('⚠️ <b>Revisa esta lectura:</b> leí <b>' + num(revisar.leido) + ' pulg</b>, pero según el consumo debería marcar cerca de <b>' + esp + '</b>.');
+    }
+    L.push('Mira el manómetro y responde a este mensaje con <code>/corregir</code> y el valor que ves (por ejemplo <code>/corregir ' + esp + '</code>).');
+    L.push('Mientras tanto queda como <b>dudosa</b> y no cuenta en los cálculos.');
+    return L.join('\n');
+  }
   if (revisar) {
     const v = num(Math.min(revisar.calc, sede.capacidad), 0);
     L.push('⚠️ <b>Revisa esta lectura:</b> calculé <b>' + num(revisar.calc) + ' pulg</b>, pero la IA estimaba ' + num(revisar.estim) + '.');
@@ -363,5 +435,5 @@ function escaparHtml(s) {
 
 // Para pruebas fuera de Apps Script.
 if (typeof module !== 'undefined') {
-  module.exports = { REGLAS, num, conSigno, fechaCorta, validarLectura, porcentaje, movimiento, promedioConsumo, analizar, reporte, tamanoJpeg, lecturaPorGeometria, ritmoReciente };
+  module.exports = { REGLAS, num, conSigno, fechaCorta, validarLectura, porcentaje, movimiento, promedioConsumo, analizar, reporte, tamanoJpeg, lecturaPorGeometria, ritmoReciente, esperadoEn, ajustarConConsumo, textoRevisarConsumo };
 }

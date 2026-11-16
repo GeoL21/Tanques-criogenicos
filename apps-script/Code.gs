@@ -510,9 +510,7 @@ function manejarMensaje(msg) {
     return;
   }
 
-  const val = validarLectura(ia, sede);
-  const aguja = val.valida ? Math.round(Number(ia.lectura) * 10) / 10 : null;
-  const nivel = aguja === null ? null : Math.min(aguja, sede.capacidad);
+  let val = validarLectura(ia, sede);
 
   // ¿Otra foto del mismo tanque hace menos de 30 min? La nueva reemplaza a la anterior.
   const repetida = lecturas.filter(function(l) {
@@ -520,9 +518,23 @@ function manejarMensaje(msg) {
       l.t <= tMs && tMs - l.t < REGLAS.minutosRepetida * 60000;
   }).pop() || null;
   const base = repetida ? lecturas.filter(function(l) { return l !== repetida; }) : lecturas;
+  const previas = validasDe(base, sede.nombre, tMs);
+
+  // Control con el consumo: elige entre cálculo y lupa, y pide confirmar si no cuadra
+  let revisarConsumo = null;
+  if (val.valida) {
+    const aj = ajustarConConsumo(ia, previas, tMs, sede);
+    ia.lectura = aj.lectura;
+    if (aj.nota) ia.motivo = (ia.motivo ? ia.motivo + ' ' : '') + aj.nota;
+    if (aj.revisar) {
+      revisarConsumo = aj.revisar;
+      val = { valida: false, motivo: textoRevisarConsumo(aj.revisar) + (ia.motivo ? ' · ' + ia.motivo : '') };
+    }
+  }
+  const aguja = val.valida ? Math.round(Number(ia.lectura) * 10) / 10 : null;
+  const nivel = aguja === null ? null : Math.min(aguja, sede.capacidad);
 
   // Cálculos
-  const previas = validasDe(base, sede.nombre, tMs);
   const a = analizar({ t: tMs, nivel: nivel }, previas, recargasDe(previas), sede);
 
   const aprox = !val.valida && ia && ia.lectura !== null && ia.lectura !== undefined && ia.lectura !== '' && !isNaN(Number(ia.lectura)) ? Number(ia.lectura) : null;
@@ -555,7 +567,7 @@ function manejarMensaje(msg) {
     guardarReporte(envO, idLectura);
   } else {
     const esRecarga = val.valida && a.movimiento === 'Recarga';
-    const env = responderEnTema(msg, aviso + reporte(sede, a, tMs, partesFecha, val.valida ? null : val.motivo, aprox, revisarDe(ia, val)) + (esRecarga ? '\n\n' + PEDIR_REMISION : ''));
+    const env = responderEnTema(msg, aviso + reporte(sede, a, tMs, partesFecha, val.valida ? null : val.motivo, aprox, revisarConsumo || revisarDe(ia, val)) + (esRecarga ? '\n\n' + PEDIR_REMISION : ''));
     guardarReporte(env, idLectura);
     if (esRecarga) registrarRecarga(sede, a, tMs, idLectura, archivo.getUrl(), env && env.ok ? env.result.message_id : '', repetida ? repetida.id : '');
   }
@@ -590,10 +602,20 @@ function reintentarPendientes() {
       if (idsR.length === 2 && sede.tema) responderEnTema({ chat: { id: idsR[0] }, message_id: Number(idsR[1]), is_topic_message: true, message_thread_id: Number(sede.tema) }, textoOtraSede(null, sede, otraR));
       return;
     }
-    const val = ia.errorIA ? { valida: false, motivo: 'La IA de Google no respondió en 24 horas. Revisa la foto y escribe el nivel a mano.' } : validarLectura(ia, sede);
+    let val = ia.errorIA ? { valida: false, motivo: 'La IA de Google no respondió en 24 horas. Revisa la foto y escribe el nivel a mano.' } : validarLectura(ia, sede);
+    const previas = validasDe(leerLecturas(), sede.nombre, l.t);
+    let revisarConsumo = null;
+    if (val.valida) {
+      const aj = ajustarConConsumo(ia, previas, l.t, sede);
+      ia.lectura = aj.lectura;
+      if (aj.nota) ia.motivo = (ia.motivo ? ia.motivo + ' ' : '') + aj.nota;
+      if (aj.revisar) {
+        revisarConsumo = aj.revisar;
+        val = { valida: false, motivo: textoRevisarConsumo(aj.revisar) + (ia.motivo ? ' · ' + ia.motivo : '') };
+      }
+    }
     const aguja = val.valida ? Math.round(Number(ia.lectura) * 10) / 10 : null;
     const nivel = aguja === null ? null : Math.min(aguja, sede.capacidad);
-    const previas = validasDe(leerLecturas(), sede.nombre, l.t);
     const a = analizar({ t: l.t, nivel: nivel }, previas, recargasDe(previas), sede);
     const aprox = !val.valida && !ia.errorIA && ia.lectura !== null && ia.lectura !== undefined && ia.lectura !== '' && !isNaN(Number(ia.lectura)) ? Number(ia.lectura) : null;
     poner(l.fila, 'Nivel (pulg)', val.valida ? nivel : aprox);
@@ -609,7 +631,7 @@ function reintentarPendientes() {
     if (ids.length === 2 && sede.tema) {
       const esRecarga = val.valida && a.movimiento === 'Recarga';
       const env = responderEnTema({ chat: { id: ids[0] }, message_id: Number(ids[1]), is_topic_message: true, message_thread_id: Number(sede.tema) },
-        reporte(sede, a, l.t, partesFecha, val.valida ? null : val.motivo, aprox, revisarDe(ia, val)) + (esRecarga ? '\n\n' + PEDIR_REMISION : ''));
+        reporte(sede, a, l.t, partesFecha, val.valida ? null : val.motivo, aprox, revisarConsumo || revisarDe(ia, val)) + (esRecarga ? '\n\n' + PEDIR_REMISION : ''));
       guardarReporte(env, l.id);
       if (esRecarga) registrarRecarga(sede, a, l.t, l.id, 'https://drive.google.com/file/d/' + l.fotoId + '/view', env && env.ok ? env.result.message_id : '');
     }
@@ -1300,6 +1322,7 @@ function aplicarGeometria(ia, blob, sede) {
   }
   ia.lectura_ia = estim;
   ia.lectura = g.lectura;
+  ia.lectura_calc = g.lectura;
   ia.metodo = 'geometria';
   let nota = 'Calculada por ángulo entre las marcas ' + g.entre[0] + ' y ' + g.entre[1] + ' (' + g.marcasUsadas + ' marcas).';
   if (estim !== null && !isNaN(estim)) {

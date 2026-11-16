@@ -55,6 +55,7 @@ Si el bot responde que no sabe de qué tanque es el tema, escribir en ese tema `
 - `/corregir 41`: un técnico corrige el nivel si la IA se equivocó. Respondiendo al reporte del bot o a la foto, corrige esa lectura; escrito solo en el tema, corrige la última foto de ese tanque. La fila queda *Corregida* con quién la corrigió, todo se recalcula y el bot manda el reporte nuevo.
 - Lectura **Dudosa** o mal leída: escribir el nivel correcto en *Nivel (pulg)*. La fila pasa sola a **Corregida** y todo se recalcula en unos segundos.
 - **Foto en el tema equivocado:** si la foto es del manómetro de la otra sede (por ejemplo, números hasta 200 en el tema de Baranoa, cuyo manómetro llega a 100, o la carátula de la otra sede), el bot no la cuenta, no reemplaza la lectura anterior ni crea recargas. Queda *Descartada* y el bot pide subirla en el tema correcto.
+- **Control con el consumo:** el bot calcula cuánto debería marcar el tanque según la última lectura y el consumo de las últimas 48 h. Si el cálculo por ángulo y la lupa no coinciden, se queda con el más cercano a eso. Si la lectura se aleja más de 6 pulg (+25 % de lo que debía bajar), o sube entre 3 y 10 pulg (una recarga sube más), queda *Dudosa* y el bot pide confirmar con `/corregir`.
 - Si un técnico manda otra foto del mismo tanque antes de 30 minutos, la nueva **reemplaza** a la anterior (queda como *Reemplazada* y no cuenta en los cálculos).
 - A las 7:00 a. m. el bot avisa en el tema si un tanque lleva más de 24 horas sin foto.
 - **Colores del tanque** (tablero y reporte):
