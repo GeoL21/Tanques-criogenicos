@@ -410,6 +410,7 @@ function procesarTelegram() {
     let offset = Number(props.getProperty('OFFSET') || 0);
     const r = telegram('getUpdates', { offset: offset, timeout: 0, allowed_updates: ['message'] });
     try { reintentarPendientes(); } catch (e) { Logger.log('Reintentos: ' + e.message); }
+    try { reintentarRemisiones(); } catch (e) { Logger.log('Remisiones pendientes: ' + e.message); }
     try { sincronizarCostos(); } catch (e) { Logger.log('Costos: ' + e.message); }
     if (!r.ok || !r.result.length) return;
     r.result.forEach(function(u) {
@@ -481,6 +482,15 @@ function manejarMensaje(msg) {
   blob.setName(nombre);
   const archivo = DriveApp.getFolderById(props.getProperty('CARPETA_ID')).createFile(blob);
 
+  // ¿Foto en respuesta a un mensaje del bot de una recarga ("Falta la remisión")? Es la remisión:
+  // no se toma como lectura del manómetro ni reemplaza la foto anterior, aunque la IA esté ocupada.
+  const recRespondida = msg.reply_to_message && esDelBot(msg.reply_to_message) ? recargaDeMensaje(msg.reply_to_message.message_id) : null;
+  if (recRespondida) {
+    archivo.setName('Remision_' + sede.nombre + '_' + Utilities.formatDate(new Date(tMs), tz, 'yyyy-MM-dd_HHmm') + '.jpg');
+    const sedeRec = leerSedes().filter(function(x) { return normalizar(x.nombre) === normalizar(recRespondida.sede); })[0] || sede;
+    return manejarFotoRemision(msg, sedeRec, blob, archivo, tMs, recRespondida);
+  }
+
   // Lectura con IA
   const ia = leerManometro(blob, sede);
   if (ia && ia.es_remision === true && ia.es_manometro !== true) {
@@ -513,7 +523,8 @@ function manejarMensaje(msg) {
   let val = validarLectura(ia, sede);
 
   // ¿Otra foto del mismo tanque hace menos de 30 min? La nueva reemplaza a la anterior.
-  const repetida = lecturas.filter(function(l) {
+  // Si la IA no leyó la foto, aún no se sabe si es un manómetro: el reemplazo se decide al reintentar.
+  const repetida = (ia && ia.errorIA) ? null : lecturas.filter(function(l) {
     return normalizar(l.sede) === normalizar(sede.nombre) && l.estado !== 'Reemplazada' && l.estado !== 'Descartada' &&
       l.t <= tMs && tMs - l.t < REGLAS.minutosRepetida * 60000;
   }).pop() || null;
@@ -590,9 +601,21 @@ function reintentarPendientes() {
     const sede = sedes.filter(function(x) { return normalizar(x.nombre) === normalizar(l.sede); })[0];
     if (!sede) return;
     if (iaEnPausa()) return;
-    const ia = leerManometro(DriveApp.getFileById(l.fotoId).getBlob(), sede);
+    const blobR = DriveApp.getFileById(l.fotoId).getBlob();
+    const ia = leerManometro(blobR, sede);
     const vencida = Date.now() - l.t > HORAS_REINTENTO * 3600000;
     if (ia.errorIA && !vencida) return; // sigue sin IA: se intenta en la próxima revisión
+    const idsM = l.msgId.split(':');
+    const msgR = idsM.length === 2 && sede.tema ? { chat: { id: idsM[0] }, message_id: Number(idsM[1]), is_topic_message: true,
+      message_thread_id: Number(sede.tema), from: { first_name: l.tecnico } } : null;
+    // Resultó ser la foto de una remisión: no es lectura; se procesa como remisión.
+    if (ia.es_remision === true && ia.es_manometro !== true) {
+      poner(l.fila, 'Movimiento', 'Sin lectura');
+      poner(l.fila, 'Lectura', 'Descartada');
+      poner(l.fila, 'Nota de la lectura', 'Era la foto de una remisión de Messer; se registró como remisión.');
+      if (msgR) manejarFotoRemision(msgR, sede, blobR, DriveApp.getFileById(l.fotoId), l.t);
+      return;
+    }
     const otraR = manometroDeOtraSede(ia, sede);
     if (otraR) {
       poner(l.fila, 'Lectura', 'Descartada');
@@ -603,7 +626,13 @@ function reintentarPendientes() {
       return;
     }
     let val = ia.errorIA ? { valida: false, motivo: 'La IA de Google no respondió en 24 horas. Revisa la foto y escribe el nivel a mano.' } : validarLectura(ia, sede);
-    const previas = validasDe(leerLecturas(), sede.nombre, l.t);
+    // Reemplazo diferido: otra foto del mismo tanque menos de 30 min antes
+    const todasR = leerLecturas();
+    const repetidaR = ia.errorIA ? null : todasR.filter(function(x) {
+      return x.id !== l.id && normalizar(x.sede) === normalizar(sede.nombre) && x.estado !== 'Reemplazada' && x.estado !== 'Descartada' &&
+        x.t <= l.t && l.t - x.t < REGLAS.minutosRepetida * 60000;
+    }).pop() || null;
+    const previas = validasDe(repetidaR ? todasR.filter(function(x) { return x.id !== repetidaR.id; }) : todasR, sede.nombre, l.t);
     let revisarConsumo = null;
     if (val.valida) {
       const aj = ajustarConConsumo(ia, previas, l.t, sede);
@@ -626,14 +655,17 @@ function reintentarPendientes() {
     poner(l.fila, 'Horas desde la anterior', a.horas === null ? null : Math.round(a.horas * 10) / 10);
     poner(l.fila, 'Lectura', val.valida ? 'Automática' : 'Dudosa');
     poner(l.fila, 'Nota de la lectura', val.valida ? (aguja > sede.capacidad ? 'La aguja marcaba ' + num(aguja) + '; se toma la capacidad del tanque (' + sede.capacidad + ').' : (ia.motivo || '')) : val.motivo);
+    const esRecargaR = val.valida && a.movimiento === 'Recarga';
+    if (repetidaR) marcarReemplazada(repetidaR, l.t, esRecargaR);
+    const avisoR = repetidaR ? '♻️ <i>Esta foto reemplaza la de las ' + horaAmPm(partesFecha(repetidaR.t).hora, partesFecha(repetidaR.t).min) + '</i>\n' : '';
     // Responder debajo de la foto original
     const ids = l.msgId.split(':');
     if (ids.length === 2 && sede.tema) {
-      const esRecarga = val.valida && a.movimiento === 'Recarga';
+      const esRecarga = esRecargaR;
       const env = responderEnTema({ chat: { id: ids[0] }, message_id: Number(ids[1]), is_topic_message: true, message_thread_id: Number(sede.tema) },
-        reporte(sede, a, l.t, partesFecha, val.valida ? null : val.motivo, aprox, revisarConsumo || revisarDe(ia, val)) + (esRecarga ? '\n\n' + PEDIR_REMISION : ''));
+        avisoR + reporte(sede, a, l.t, partesFecha, val.valida ? null : val.motivo, aprox, revisarConsumo || revisarDe(ia, val)) + (esRecarga ? '\n\n' + PEDIR_REMISION : ''));
       guardarReporte(env, l.id);
-      if (esRecarga) registrarRecarga(sede, a, l.t, l.id, 'https://drive.google.com/file/d/' + l.fotoId + '/view', env && env.ok ? env.result.message_id : '');
+      if (esRecarga) registrarRecarga(sede, a, l.t, l.id, 'https://drive.google.com/file/d/' + l.fotoId + '/view', env && env.ok ? env.result.message_id : '', repetidaR ? repetidaR.id : '');
     }
   });
   actualizarResumen();
@@ -932,6 +964,86 @@ function manejarRespuestaRemision(msg) {
 
 function signoTxt(n) { const r = Math.round(n * 10) / 10; return (r > 0 ? '+' : r < 0 ? '−' : '') + num(Math.abs(r)); }
 
+/** Recarga a la que pertenece un mensaje del bot (reporte de recarga o recordatorio "Falta la remisión"). */
+function recargaDeMensaje(idMensaje) {
+  const id = String(idMensaje);
+  return leerRecargas().filter(function(r) { return r.idsBot.indexOf(id) >= 0; })[0] || null;
+}
+
+/** Guarda una foto de remisión para leerla cuando la IA vuelva a responder. */
+function encolarRemision(msg, sede, archivo, tMs, rec) {
+  const props = PropertiesService.getScriptProperties();
+  const cola = JSON.parse(props.getProperty('REMISIONES_PEND') || '[]');
+  const clave = msg.chat.id + ':' + msg.message_id;
+  if (cola.some(function(x) { return x.clave === clave; })) return;
+  cola.push({ clave: clave, chat: String(msg.chat.id), msg: msg.message_id, tema: msg.message_thread_id || '', sede: sede.nombre,
+    foto: archivo.getId(), t: tMs, recId: rec ? rec.id : '', recFila: rec ? rec.fila : '',
+    nombre: [msg.from && msg.from.first_name, msg.from && msg.from.last_name].filter(Boolean).join(' ') });
+  props.setProperty('REMISIONES_PEND', JSON.stringify(cola.slice(-20)));
+}
+
+/** Lee las remisiones que quedaron en cola porque la IA estaba ocupada. */
+function reintentarRemisiones() {
+  const props = PropertiesService.getScriptProperties();
+  let cola = JSON.parse(props.getProperty('REMISIONES_PEND') || '[]');
+  if (!cola.length || iaEnPausa()) return;
+  const sedes = leerSedes();
+  const x = cola[0];
+  const sede = sedes.filter(function(s) { return normalizar(s.nombre) === normalizar(x.sede); })[0];
+  const vencida = Date.now() - x.t > HORAS_REINTENTO * 3600000;
+  let hecho = !sede;
+  if (sede) {
+    const msg = { chat: { id: x.chat }, message_id: x.msg, is_topic_message: !!x.tema, message_thread_id: x.tema ? Number(x.tema) : undefined,
+      from: { first_name: x.nombre } };
+    const archivo = DriveApp.getFileById(x.foto);
+    const rec = x.recId || x.recFila ? leerRecargas().filter(function(r) { return (x.recId && r.id === x.recId) || r.fila === x.recFila; })[0] : null;
+    const env = manejarFotoRemision(msg, sede, archivo.getBlob(), archivo, x.t, rec || null, true);
+    hecho = env !== null || vencida;
+    if (env === null && vencida) {
+      responderEnTema(msg, '🧾 La IA de Google no respondió en 24 horas. Responde al mensaje de la recarga con el número de remisión.');
+    }
+  }
+  if (hecho) {
+    cola = JSON.parse(props.getProperty('REMISIONES_PEND') || '[]').filter(function(y) { return y.clave !== x.clave; });
+    props.setProperty('REMISIONES_PEND', JSON.stringify(cola));
+  }
+}
+
+/**
+ * ARREGLO MANUAL: una foto de remisión que el bot tomó como foto del manómetro (IA ocupada) y que "reemplazó" la lectura anterior.
+ * Escribe la hora de la foto de la remisión (HH:mm) y la sede, y ejecuta. Ej.: arreglarRemisionComoLectura('Baranoa', '2026-11-17', '10:19')
+ */
+function arreglarRemisionComoLectura(sedeNombre, dia, hora) {
+  sedeNombre = sedeNombre || 'Baranoa'; dia = dia || '2026-11-17'; hora = hora || '10:19';
+  const tz = Session.getScriptTimeZone();
+  const lecturas = leerLecturas();
+  const deSede = lecturas.filter(function(l) { return normalizar(l.sede) === normalizar(sedeNombre); });
+  const rem = deSede.filter(function(l) { return Utilities.formatDate(new Date(l.t), tz, 'yyyy-MM-dd HH:mm') === dia + ' ' + hora; })[0];
+  if (!rem) throw new Error('No encontré la foto de ' + sedeNombre + ' del ' + dia + ' a las ' + hora);
+  const sede = leerSedes().filter(function(s) { return normalizar(s.nombre) === normalizar(sedeNombre); })[0];
+  // 1) La lectura que quedó "Reemplazada" por esa foto vuelve a contar (pendiente de leer con la IA si no tenía nivel)
+  deSede.filter(function(l) { return l.estado === 'Reemplazada' && l.t < rem.t && rem.t - l.t < REGLAS.minutosRepetida * 60000; }).forEach(function(l) {
+    const nota = l.nota.replace(/^Reemplazada por la foto de las [^·]*(· )?/, '');
+    const sinNivel = l.nivel === null || isNaN(l.nivel);
+    ponerEn(HOJA_LEC, l.fila, 'Lectura', sinNivel ? 'Dudosa' : 'Automática');
+    ponerEn(HOJA_LEC, l.fila, 'Nota de la lectura', sinNivel ? IA_NO_DISPONIBLE + ' (reintento después del arreglo).' : nota);
+  });
+  // 2) La foto de la remisión deja de ser lectura y se procesa como remisión (si el bot no lo hizo ya al reintentar)
+  if (rem.estado === 'Descartada') { recalcularTodo(); actualizarResumen(); return; }
+  ponerEn(HOJA_LEC, rem.fila, 'Movimiento', 'Sin lectura');
+  ponerEn(HOJA_LEC, rem.fila, 'Nivel (pulg)', '');
+  ponerEn(HOJA_LEC, rem.fila, 'Lectura', 'Descartada');
+  ponerEn(HOJA_LEC, rem.fila, 'Nota de la lectura', 'Era la foto de una remisión de Messer; se registró como remisión.');
+  const ids = rem.msgId.split(':');
+  const msg = { chat: { id: ids[0] }, message_id: Number(ids[1]), is_topic_message: true, message_thread_id: Number(sede.tema), from: { first_name: rem.tecnico } };
+  const archivo = DriveApp.getFileById(rem.fotoId);
+  const rec = leerRecargas().filter(function(r) { return normalizar(r.sede) === normalizar(sedeNombre) && r.estado === 'Falta remisión' && r.t < rem.t; })
+    .sort(function(a, b) { return b.t - a.t; })[0] || null;
+  manejarFotoRemision(msg, sede, archivo.getBlob(), archivo, rem.t, rec);
+  recalcularTodo();
+  actualizarResumen();
+}
+
 /** Lee con la IA los datos de una remisión de Messer (número, fecha, niveles y presiones). */
 function leerRemision(blob, sede) {
   const prompt =
@@ -968,12 +1080,14 @@ function datosRemision(r, sede) {
 }
 
 /** Llegó la foto de una remisión: se leen sus datos y se guardan en la recarga reciente de esa sede. */
-function manejarFotoRemision(msg, sede, blob, archivo, tMs) {
+function manejarFotoRemision(msg, sede, blob, archivo, tMs, recFija, enCola) {
   const cab = '🧾 <b>Remisión de Messer · ' + sede.nombre + '</b>\n';
   const r = leerRemision(blob, sede);
   if (r.errorIA) {
-    return responderEnTema(msg, cab + 'La IA de Google está ocupada y no pude leer la remisión. Vuelve a enviar la foto en unos minutos, ' +
-      'o responde al mensaje de la recarga con el número de remisión.');
+    if (enCola) return null; // sigue en la cola: se intenta en la próxima revisión
+    encolarRemision(msg, sede, archivo, tMs, recFija);
+    return responderEnTema(msg, cab + 'Recibí la foto de la remisión, pero la IA de Google está ocupada. ' +
+      'La leeré sola en unos minutos y responderé aquí. <b>No hace falta enviarla de nuevo.</b>');
   }
   const d = datosRemision(r, sede);
   // Recarga a la que pertenece: la más reciente de la sede (hasta 2 días antes) sin remisión o con este mismo número
@@ -981,7 +1095,7 @@ function manejarFotoRemision(msg, sede, blob, archivo, tMs) {
     return normalizar(x.sede) === normalizar(sede.nombre) && x.t <= tMs + 2 * 3600000 && tMs - x.t <= 48 * 3600000 &&
       (x.estado === 'Falta remisión' || (d.numero && x.remision === d.numero));
   }).sort(function(a, b) { return b.t - a.t; });
-  const rec = recs[0];
+  const rec = recFija ? (leerRecargas().filter(function(x) { return x.id === recFija.id || x.fila === recFija.fila; })[0] || recFija) : recs[0];
   // La fecha va a mano: si la IA lee un año que no cuadra (2024 en vez de 2026), se usa el año de la recarga.
   if (d.fecha && rec && Math.abs(d.fecha.getTime() - rec.t) > 60 * 86400000) {
     const ajustada = new Date(new Date(rec.t).getFullYear(), d.fecha.getMonth(), d.fecha.getDate(), 12);
