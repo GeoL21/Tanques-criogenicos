@@ -1044,6 +1044,51 @@ function arreglarRemisionComoLectura(sedeNombre, dia, hora) {
   actualizarResumen();
 }
 
+/**
+ * ARREGLO DEL 17 NOV (Baranoa): ejecutar UNA vez desde el editor.
+ * 1) La foto de la remisión de las 10:19 deja de ser lectura y la de las 10:06 vuelve a contar.
+ * 2) La recarga del 16 nov queda con los niveles de la remisión 1002170 (52 → 74), como pidió Jorge.
+ */
+function arreglarBaranoa17Nov() {
+  arreglarRemisionComoLectura('Baranoa', '2026-11-17', '10:19');
+  usarNivelesDeRemision('Baranoa', '2026-11-16', '1002170', 52, 74);
+}
+
+/**
+ * Deja una recarga con los niveles de la remisión (en vez de los del manómetro).
+ * También corrige la lectura de la recarga, así el consumo siguiente se calcula desde el nivel de la remisión.
+ */
+function usarNivelesDeRemision(sedeNombre, dia, numero, inicial, final) {
+  const tz = Session.getScriptTimeZone();
+  const rec = leerRecargas().filter(function(r) {
+    return normalizar(r.sede) === normalizar(sedeNombre) && (r.remision === numero || Utilities.formatDate(new Date(r.t), tz, 'yyyy-MM-dd') === dia);
+  }).sort(function(a, b) { return b.t - a.t; })[0];
+  if (!rec) throw new Error('No encontré la recarga de ' + sedeNombre + ' del ' + dia);
+  const finalAntes = rec.final;
+  ponerEnRecarga(rec.fila, 'N.º remisión', numero);
+  ponerEnRecarga(rec.fila, 'Estado', 'Completa');
+  ponerEnRecarga(rec.fila, 'Inicial (pulg)', inicial);
+  ponerEnRecarga(rec.fila, 'Final (pulg)', final);
+  ponerEnRecarga(rec.fila, 'Pulgadas recargadas', Math.round((final - inicial) * 10) / 10);
+  const l = leerLecturas().filter(function(x) { return x.id === rec.lectura; })[0];
+  if (l) {
+    ponerEn(HOJA_LEC, l.fila, 'Nivel (pulg)', final);
+    ponerEn(HOJA_LEC, l.fila, 'Lectura', 'Corregida');
+    ponerEn(HOJA_LEC, l.fila, 'Nota de la lectura', 'Nivel tomado de la remisión ' + numero + ' (el manómetro marcó ' + num(Number(finalAntes)) +
+      '). Pendiente aclarar con Messer.');
+  }
+  recalcularTodo();
+  actualizarResumen();
+  const sede = leerSedes().filter(function(s) { return normalizar(s.nombre) === normalizar(sedeNombre); })[0];
+  const grupo = PropertiesService.getScriptProperties().getProperty('GRUPO_ID');
+  if (sede && sede.tema && grupo) {
+    const p = partesFecha(rec.t);
+    telegram('sendMessage', { chat_id: grupo, message_thread_id: Number(sede.tema), parse_mode: 'HTML',
+      text: '✏️ <b>Recarga del ' + p.dia + ' ' + MESES_CORTOS[p.mes - 1] + ' ajustada según la remisión ' + numero + '</b>: ' +
+        num(inicial) + ' → ' + num(final) + ' pulg (' + signoTxt(final - inicial) + ').' });
+  }
+}
+
 /** Lee con la IA los datos de una remisión de Messer (número, fecha, niveles y presiones). */
 function leerRemision(blob, sede) {
   const prompt =
