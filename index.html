@@ -6,8 +6,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--vino:#8E4953;--vino2:#72333F;--rosa:#F7F1F3;--borde:#DCC8D0;--txt:#26181D;--sec:#6d5a64;--ok:#2E7D5B;--okf:#E4F3EC;--aviso:#C77700;--avisof:#FFF3DC;--mal:#B3261E;--malf:#FCEBEA;--ease-out:cubic-bezier(0.23,1,0.32,1)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -391,6 +391,79 @@ nav button.on svg{background:var(--rosa);color:var(--cont)}
  .topbar small{color:var(--sec);font-weight:500}
  .sec{margin-top:6px}
  .seg button:not(.on):hover{background:var(--tarjeta2)}
+}
+
+/* ---------- Ajuste 17 nov 2026: letras más gruesas y color un pelín más vivo (teléfono y PC) ---------- */
+:root{--vino:#84303F;--vino2:#6B2433;--rosa:#FFCCD4;--borde:#D3B8BC;--txt:#160D0E;--sec:#45343A;--fondo:#FFF7F6;--tarjeta:#F7E3E6;--tarjeta2:#EFD5D9;--cont:#33030F}
+body{font-weight:500}
+header h1{font-weight:800}
+.estado{font-weight:700}
+.estado button{font-weight:800}
+.seg button{font-weight:800}
+.cn{font-weight:800}
+.card h2{font-weight:800}
+.card h2 small{font-weight:700}
+.nivel b{font-weight:800}
+.barra .marca em{font-weight:800}
+.msg{font-weight:700}
+.ks b{font-weight:800}
+.rt small{font-weight:700}
+.rt b{font-weight:800}
+.tag{font-weight:800}
+tr.recarga td.n{font-weight:800}
+.foto{font-weight:800}
+th{font-weight:800}
+nav button{font-weight:800}
+.modal .go{font-weight:800}
+.inst b{font-weight:800}
+.inst .go{font-weight:800}
+.mesb b{font-weight:800}
+.gasto .sd{font-weight:800}
+.gasto .sd small{font-weight:800}
+.gasto .vl{font-weight:800}
+.ejes span{font-weight:700}
+#barrasC .ley{font-weight:700}
+.cr .vl{font-weight:800}
+.cr .vl small{font-weight:700}
+.bfac{font-weight:800}
+.tc .sd{font-weight:800}
+.tc .sd small{font-weight:700}
+.tc .nv{font-weight:800}
+.tc .nv span{font-weight:700}
+.pill{font-weight:800}
+.tc .ex.av{font-weight:700}
+.kp .k{font-weight:700}
+.kp b{font-weight:800}
+.ul .v{font-weight:800}
+.vacia b{font-weight:800}
+.vcont{font-weight:800}
+.vcarga{font-weight:800}
+.vbig{font-weight:800}
+.vbig small{font-weight:700}
+.vk{font-weight:700}
+.admlink{font-weight:700}
+.bts button{font-weight:800}
+.modal label{font-weight:800}
+.aviso{font-weight:800}
+.aviso button{font-weight:800}
+@media (min-width:1024px){.topbar h2{font-weight:800}
+.topbar small{font-weight:700}
+.brand b{font-weight:800}
+}header h1{font-weight:800}
+.estado .hora{font-weight:700}
+.estado button{font-weight:700}
+.sec{font-weight:700}
+.card h2{font-weight:700}
+.card h2 small{font-weight:600}
+.seg button{font-weight:700}
+.mesb b{font-weight:800}
+nav button{font-weight:600}
+nav button.on{font-weight:800}
+@media (min-width:1024px){nav button{font-weight:600}
+nav button.on{font-weight:800}
+.brand b{font-weight:800}
+.topbar h2{font-weight:800}
+.topbar small{font-weight:600}
 }
 </style></head><body>
 <header><div class="hrow"><a class="volver" href="https://geol21.github.io/" aria-label="Volver al portal de apps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg></a><div class="hder"><button id="btnInst" class="hbtn oculto" aria-label="Instalar app" onclick="instalar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg></button><img src="logo-crc.png" alt="Clínica Reina Catalina"></div></div><h1>Tanques criogénicos</h1><p id="sub">Clínica Reina Catalina · Barranquilla y Baranoa</p></header>
