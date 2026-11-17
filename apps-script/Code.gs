@@ -1047,7 +1047,8 @@ function arreglarRemisionComoLectura(sedeNombre, dia, hora) {
 /**
  * ARREGLO DEL 17 NOV (Baranoa): ejecutar UNA vez desde el editor.
  * 1) La foto de la remisión de las 10:19 deja de ser lectura y la de las 10:06 vuelve a contar.
- * 2) La recarga del 16 nov queda con los niveles de la remisión 1002170 (52 → 74), como pidió Jorge.
+ * 2) La recarga del 16 nov queda con los niveles de la remisión 1002170 (52 → 74). La foto de Kevin (64,8) se deja tal cual:
+ *    entre el camión y esa foto el tanque gastó 9,2 pulg.
  */
 function arreglarBaranoa17Nov() {
   arreglarRemisionComoLectura('Baranoa', '2026-11-17', '10:19');
@@ -1055,8 +1056,8 @@ function arreglarBaranoa17Nov() {
 }
 
 /**
- * Deja una recarga con los niveles de la remisión (en vez de los del manómetro).
- * También corrige la lectura de la recarga, así el consumo siguiente se calcula desde el nivel de la remisión.
+ * Deja una recarga con los niveles de la remisión (cuando llegó y cuando se fue el camión).
+ * Las lecturas de las fotos no se tocan: son lo que marcaba el manómetro cuando se tomaron.
  */
 function usarNivelesDeRemision(sedeNombre, dia, numero, inicial, final) {
   const tz = Session.getScriptTimeZone();
@@ -1070,12 +1071,20 @@ function usarNivelesDeRemision(sedeNombre, dia, numero, inicial, final) {
   ponerEnRecarga(rec.fila, 'Inicial (pulg)', inicial);
   ponerEnRecarga(rec.fila, 'Final (pulg)', final);
   ponerEnRecarga(rec.fila, 'Pulgadas recargadas', Math.round((final - inicial) * 10) / 10);
+  // La foto de la recarga (la de Kevin) es real: se deja con lo que marcó el manómetro.
+  // Si una versión anterior de este arreglo la cambió al nivel de la remisión, se devuelve.
   const l = leerLecturas().filter(function(x) { return x.id === rec.lectura; })[0];
-  if (l) {
-    ponerEn(HOJA_LEC, l.fila, 'Nivel (pulg)', final);
-    ponerEn(HOJA_LEC, l.fila, 'Lectura', 'Corregida');
-    ponerEn(HOJA_LEC, l.fila, 'Nota de la lectura', 'Nivel tomado de la remisión ' + numero + ' (el manómetro marcó ' + num(Number(finalAntes)) +
-      '). Pendiente aclarar con Messer.');
+  let nivelFoto = l ? l.nivel : null;
+  if (l && l.nota.indexOf('Nivel tomado de la remisión') === 0) {
+    const m = l.nota.match(/marcó ([\d.,]+)/);
+    if (m) {
+      nivelFoto = Number(m[1].replace(',', '.'));
+      ponerEn(HOJA_LEC, l.fila, 'Nivel (pulg)', nivelFoto);
+      ponerEn(HOJA_LEC, l.fila, 'Lectura', 'Automática');
+      ponerEn(HOJA_LEC, l.fila, 'Nota de la lectura', 'Foto tomada después de la recarga; el camión lo dejó en ' + num(final) + ' según la remisión ' + numero + '.');
+    }
+  } else if (l) {
+    ponerEn(HOJA_LEC, l.fila, 'Nota de la lectura', 'Foto tomada después de la recarga; el camión lo dejó en ' + num(final) + ' según la remisión ' + numero + '.');
   }
   recalcularTodo();
   actualizarResumen();
@@ -1085,7 +1094,9 @@ function usarNivelesDeRemision(sedeNombre, dia, numero, inicial, final) {
     const p = partesFecha(rec.t);
     telegram('sendMessage', { chat_id: grupo, message_thread_id: Number(sede.tema), parse_mode: 'HTML',
       text: '✏️ <b>Recarga del ' + p.dia + ' ' + MESES_CORTOS[p.mes - 1] + ' ajustada según la remisión ' + numero + '</b>: ' +
-        num(inicial) + ' → ' + num(final) + ' pulg (' + signoTxt(final - inicial) + ').' });
+        num(inicial) + ' → ' + num(final) + ' pulg (' + signoTxt(final - inicial) + ').' +
+        (nivelFoto !== null && nivelFoto < final ? '\nCuando se tomó la foto después de la recarga marcaba <b>' + num(nivelFoto) +
+          ' pulg</b>: gastó ' + num(Math.round((final - nivelFoto) * 10) / 10) + ' pulg desde que se fue el camión.' : '') });
   }
 }
 
