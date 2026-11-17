@@ -359,7 +359,7 @@ function recargasDe(serie) {
   const out = [];
   for (let i = 1; i < serie.length; i++) {
     const c = serie[i].nivel - serie[i - 1].nivel;
-    if (c >= REGLAS.recargaMin) out.push({ t: serie[i].t, cambio: Math.round(c * 10) / 10, desde: serie[i - 1].nivel, hasta: serie[i].nivel });
+    if (c >= REGLAS.recargaMin) out.push({ id: serie[i].id, t: serie[i].t, cambio: Math.round(c * 10) / 10, desde: serie[i - 1].nivel, hasta: serie[i].nivel });
   }
   return out;
 }
@@ -1763,6 +1763,12 @@ function resumenSede(sede, lecturas) {
   const ult = serie.length ? serie[serie.length - 1] : null;
   const rec = recargasDe(serie);
   const ultRec = rec.length ? rec[rec.length - 1] : null;
+  // Si la recarga ya tiene remisión, las pulgadas recargadas salen de la pestaña Recargas (llegada y salida del camión)
+  let recCambio = ultRec ? ultRec.cambio : null;
+  if (ultRec) {
+    const fila = leerRecargas().filter(function(r) { return r.lectura === ultRec.id; })[0];
+    if (fila && fila.cambio !== '' && fila.cambio !== null && !isNaN(Number(fila.cambio))) recCambio = Number(fila.cambio);
+  }
   const p7 = promedioConsumo(serie, ahora, 7);
   const p30 = promedioConsumo(serie, ahora, 30);
   const p48 = ult ? promedioConsumo(serie, ult.t, REGLAS.diasEstimar) : null;
@@ -1775,7 +1781,7 @@ function resumenSede(sede, lecturas) {
   return {
     sede: sede.nombre, capacidad: sede.capacidad, escala: sede.escala, aviso: sede.aviso,
     nivel: ult ? ult.nivel : null, pct: ult ? porcentaje(ult.nivel, sede.capacidad) : null, ultimaT: ult ? ult.t : null,
-    prom7: p7, prom30: p30, prom48: p48, recargaT: ultRec ? ultRec.t : null, recargaCambio: ultRec ? ultRec.cambio : null,
+    prom7: p7, prom30: p30, prom48: p48, recargaT: ultRec ? ultRec.t : null, recargaCambio: recCambio,
     dias: dias, estado: estado, reciente: reciente, ritmoAlto: rt.alto
   };
 }
