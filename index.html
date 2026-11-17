@@ -465,6 +465,18 @@ nav button.on{font-weight:800}
 .topbar h2{font-weight:800}
 .topbar small{font-weight:600}
 }
+
+/* ---------- Colores por estado (17 nov 2026): blanco = normal, verde = recarga, ámbar = dudosa, rojo que late = falta remisión ---------- */
+#lstL .li,#lstRc .li{background:#fff;border-bottom:0;border-radius:16px;padding:10px 12px;margin-bottom:4px;box-shadow:inset 0 0 0 1px var(--tarjeta2)}
+#lstL .li.recarga,#lstRc .li.recarga{background:var(--okf);box-shadow:inset 4px 0 0 #2E7D5B}
+.li.dudosa{background:#FFF3DC!important;box-shadow:none!important}
+.li.falta{background:#FCE4E1!important;box-shadow:none!important;animation:latidoUrg 2.4s ease-in-out infinite}
+.tw tbody td{background:#fff}
+.tw tr.recarga td{background:var(--okf)}
+tr.dudosa td{background:#FFF3DC!important}
+tr.falta td{animation:latidoUrg 2.4s ease-in-out infinite}
+@keyframes latidoUrg{0%,100%{background:#FCE4E1}50%{background:#F6C6C0}}
+@media (prefers-reduced-motion:reduce){.li.falta,tr.falta td{animation:none;background:#FCE4E1}}
 </style></head><body>
 <header><div class="hrow"><a class="volver" href="https://geol21.github.io/" aria-label="Volver al portal de apps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg></a><div class="hder"><button id="btnInst" class="hbtn oculto" aria-label="Instalar app" onclick="instalar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg></button><img src="logo-crc.png" alt="Clínica Reina Catalina"></div></div><h1>Tanques criogénicos</h1><p id="sub">Clínica Reina Catalina · Barranquilla y Baranoa</p></header>
 <div class="topbar"><div class="tt"><h2 id="tituloVista">Resumen</h2><small>Barranquilla y Baranoa</small></div><div class="estado carga" id="est" role="status"><span id="estTxt">Cargando…</span><span class="dcha"><span class="hora" aria-label="Hora de Colombia"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span id="reloj"></span></span><button id="btnAct" onclick="cargar()" aria-label="Actualizar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></svg>Actualizar</button></span></div></div>
@@ -949,12 +961,12 @@ function pintarLecturas(){
  if(!L.length){$('lstL').innerHTML='<div class="vacio">Aún no hay lecturas de '+esc(sede)+'.</div>';return;}
  if(window.matchMedia('(min-width:1024px)').matches){
   $('lstL').innerHTML=`<div class="tw"><table class="cen"><thead><tr><th>Fecha y hora</th><th>Nivel (pulg)</th><th>% lleno</th><th>Cambio</th><th>Movimiento</th><th>Consumo por día</th><th>Técnico</th><th style="text-align:left">Nota</th><th>Foto</th></tr></thead><tbody>`+
-  L.map(l=>`<tr${l.mov==='Recarga'&&l.estado!=='Dudosa'&&l.estado!=='Reemplazada'?' class="recarga"':''}><td>${diaLargo(l.t)}, ${hora(l.t)}</td><td class="n">${l.estado==='Dudosa'?'—':num(l.nivel)}</td><td class="n">${l.pct!=null&&l.estado!=='Dudosa'?l.pct+' %':'—'}</td><td class="n">${l.estado==='Dudosa'?'—':signo(l.cambio)}</td><td>${etiqueta(l)}</td><td class="n">${l.porDia!=null?signo(l.porDia):'—'}</td><td>${esc(l.tecnico)}</td><td style="max-width:260px;font-size:12.5px;color:var(--sec);text-align:left">${esc(l.nota)}</td><td>${linkFoto(l)}</td></tr>`).join('')+'</tbody></table></div>';
+  L.map(l=>`<tr${l.estado==='Dudosa'?' class="dudosa"':l.mov==='Recarga'&&l.estado!=='Reemplazada'?' class="recarga"':''}><td>${diaLargo(l.t)}, ${hora(l.t)}</td><td class="n">${l.estado==='Dudosa'?'—':num(l.nivel)}</td><td class="n">${l.pct!=null&&l.estado!=='Dudosa'?l.pct+' %':'—'}</td><td class="n">${l.estado==='Dudosa'?'—':signo(l.cambio)}</td><td>${etiqueta(l)}</td><td class="n">${l.porDia!=null?signo(l.porDia):'—'}</td><td>${esc(l.tecnico)}</td><td style="max-width:260px;font-size:12.5px;color:var(--sec);text-align:left">${esc(l.nota)}</td><td>${linkFoto(l)}</td></tr>`).join('')+'</tbody></table></div>';
   return;}
  let dia='',h='';
  L.forEach(l=>{const d=diaLargo(l.t);if(d!==dia){dia=d;h+=`<div style="font-size:12.5px;font-weight:700;color:var(--sec);margin:12px 0 2px">${d}</div>`;}
   const linea=l.estado==='Dudosa'?esc(l.nota||'No se pudo leer la foto'):`${num(l.nivel)} pulg (${l.pct} %) · cambio ${signo(l.cambio)}`;
-  h+=`<div class="li${l.mov==='Recarga'&&l.estado!=='Dudosa'&&l.estado!=='Reemplazada'?' recarga':''}"><div class="tx"><b>${hora(l.t)} · ${etiqueta(l)}</b><small>${linea}</small><small>Subió: ${esc(l.tecnico||'—')}</small></div>${linkFoto(l)}</div>`;});
+  h+=`<div class="li${l.estado==='Dudosa'?' dudosa':l.mov==='Recarga'&&l.estado!=='Reemplazada'?' recarga':''}"><div class="tx"><b>${hora(l.t)} · ${etiqueta(l)}</b><small>${linea}</small><small>Subió: ${esc(l.tecnico||'—')}</small></div>${linkFoto(l)}</div>`;});
  $('lstL').innerHTML=h;
 }
 
@@ -971,9 +983,9 @@ function pintarRecargas(){
  const estPc=r=>r.estado==='Falta remisión'?'<span class="tag fuerte falta">'+IC_ALERTA+'Falta remisión</span>':r.estado==='Completa'?'<span class="tag fuerte ok">'+IC_CHECK+'Completa</span>':'';
  if(window.matchMedia('(min-width:1024px)').matches){
   $('lstRc').innerHTML=`<div class="tw"><table class="cen"><thead><tr><th>Fecha y hora</th><th>Inicial</th><th>Final</th><th>Recargado</th><th>N.º remisión</th><th>Estado</th><th>Registró</th></tr></thead><tbody>`+
-  R.map(r=>`<tr><td>${diaLargo(r.t)}, ${hora(r.t)}</td><td class="n">${num(r.inicial)}</td><td class="n">${num(r.final)}</td><td class="n">${signo(r.cambio)}</td><td>${r.remision?'<b>'+esc(r.remision)+'</b>':'—'}</td><td>${estPc(r)}</td><td>${esc(r.registro||'—')}</td></tr>`).join('')+'</tbody></table></div>';
+  R.map(r=>`<tr${r.estado==='Falta remisión'?' class="falta"':''}><td>${diaLargo(r.t)}, ${hora(r.t)}</td><td class="n">${num(r.inicial)}</td><td class="n">${num(r.final)}</td><td class="n">${signo(r.cambio)}</td><td>${r.remision?'<b>'+esc(r.remision)+'</b>':'—'}</td><td>${estPc(r)}</td><td>${esc(r.registro||'—')}</td></tr>`).join('')+'</tbody></table></div>';
   return;}
- $('lstRc').innerHTML=R.map(r=>`<div class="li"><div class="tx"><b>${diaLargo(r.t)}, ${hora(r.t)} ${est(r)}</b><small>${num(r.inicial)} → ${num(r.final)} pulg · <b style="display:inline;color:#22694B">${signo(r.cambio)} pulg</b></small><small>${r.remision?'Remisión <b style="display:inline">'+esc(r.remision)+'</b> · registró '+esc(r.registro||'—'):'Falta que un técnico responda en Telegram con el número de remisión.'}</small></div></div>`).join('');
+ $('lstRc').innerHTML=R.map(r=>`<div class="li${r.estado==='Falta remisión'?' falta':''}"><div class="tx"><b>${diaLargo(r.t)}, ${hora(r.t)} ${est(r)}</b><small>${num(r.inicial)} → ${num(r.final)} pulg · <b style="display:inline;color:#22694B">${signo(r.cambio)} pulg</b></small><small>${r.remision?'Remisión <b style="display:inline">'+esc(r.remision)+'</b> · registró '+esc(r.registro||'—'):'Falta que un técnico responda en Telegram con el número de remisión.'}</small></div></div>`).join('');
 }
 
 /* ---------- Costos (Messer cobra por m³; precio sin IVA y con transporte) ---------- */
