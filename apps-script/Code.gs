@@ -48,6 +48,7 @@ const COLS_REC_NUEVAS = { 'Fecha de la remisión': 'DATE', 'Presión inicial (ba
   'N.º factura': 'TEXT', 'm³ facturados': 'DOUBLE', 'Costo facturado': 'CURRENCY' };
 const VERSION_COLUMNAS = '2';
 const ESTADOS_RECARGA = ['Falta remisión', 'Completa'];
+const DESDE_REMISION = 'Desde remisión'; // va en "ID de la lectura" cuando la recarga se creó solo con la remisión
 const PEDIR_REMISION = '📝 <b>Responde a este mensaje con el número de remisión de Messer.</b>';
 const HORA_RECORDATORIO = 7; // 7:00 a. m.
 const COLUMNAS_CHIP = ['Foto', 'Foto del nivel', 'Foto de la remisión'];
@@ -578,7 +579,7 @@ function manejarMensaje(msg) {
     guardarReporte(envO, idLectura);
   } else {
     const esRecarga = val.valida && a.movimiento === 'Recarga';
-    const env = responderEnTema(msg, aviso + reporte(sede, a, tMs, partesFecha, val.valida ? null : val.motivo, aprox, revisarConsumo || revisarDe(ia, val)) + (esRecarga ? '\n\n' + PEDIR_REMISION : ''));
+    const env = responderEnTema(msg, aviso + reporte(sede, a, tMs, partesFecha, val.valida ? null : val.motivo, aprox, revisarConsumo || revisarDe(ia, val)) + (esRecarga ? '\n\n' + (function() { const rm = recargaDesdeRemision(sede.nombre, tMs); return rm ? confirmaRemision(rm) : PEDIR_REMISION; })() : ''));
     guardarReporte(env, idLectura);
     if (esRecarga) registrarRecarga(sede, a, tMs, idLectura, archivo.getUrl(), env && env.ok ? env.result.message_id : '', repetida ? repetida.id : '');
   }
@@ -663,7 +664,7 @@ function reintentarPendientes() {
     if (ids.length === 2 && sede.tema) {
       const esRecarga = esRecargaR;
       const env = responderEnTema({ chat: { id: ids[0] }, message_id: Number(ids[1]), is_topic_message: true, message_thread_id: Number(sede.tema) },
-        avisoR + reporte(sede, a, l.t, partesFecha, val.valida ? null : val.motivo, aprox, revisarConsumo || revisarDe(ia, val)) + (esRecarga ? '\n\n' + PEDIR_REMISION : ''));
+        avisoR + reporte(sede, a, l.t, partesFecha, val.valida ? null : val.motivo, aprox, revisarConsumo || revisarDe(ia, val)) + (esRecarga ? '\n\n' + (function() { const rm = recargaDesdeRemision(sede.nombre, l.t); return rm ? confirmaRemision(rm) : PEDIR_REMISION; })() : ''));
       guardarReporte(env, l.id);
       if (esRecarga) registrarRecarga(sede, a, l.t, l.id, 'https://drive.google.com/file/d/' + l.fotoId + '/view', env && env.ok ? env.result.message_id : '', repetidaR ? repetidaR.id : '');
     }
@@ -896,10 +897,31 @@ function agregarIdBot(rec, id) {
   ponerEnRecarga(rec.fila, 'IDs de mensajes del bot', ids.join(','));
 }
 
+/** Recarga de la sede creada solo con la remisión (sin foto del manómetro) en los últimos 3 días antes de este momento. */
+function recargaDesdeRemision(sedeNombre, tMs) {
+  return leerRecargas().filter(function(r) {
+    return normalizar(r.sede) === normalizar(sedeNombre) && r.lectura === DESDE_REMISION && r.t <= tMs + 2 * 3600000 && tMs - r.t <= 72 * 3600000;
+  }).pop() || null;
+}
+
+/** Texto que va en lugar de pedir la remisión cuando la recarga ya se registró con ella. */
+function confirmaRemision(rem) {
+  return '✅ <b>Esta recarga ya estaba registrada con la remisión N.º ' + escaparHtml(rem.remision || '') + '</b> (' +
+    num(rem.inicial) + ' → ' + num(rem.final) + ' pulg). La confirmé con esta foto; no hace falta enviar la remisión otra vez.';
+}
+
 /** Crea la fila de la recarga (una sola vez por lectura) con estado "Falta remisión". */
 function registrarRecarga(sede, a, tMs, idLectura, fotoUrl, idMensajeBot, idReemplazada) {
   const todas = leerRecargas();
   if (todas.some(function(r) { return r.lectura === idLectura; })) return;
+  // La recarga ya se había creado con la remisión: esta foto la confirma (no se crea otra).
+  const rem = recargaDesdeRemision(sede.nombre, tMs);
+  if (rem) {
+    ponerEnRecarga(rem.fila, 'ID de la lectura', idLectura);
+    if (fotoUrl) ponerChipRecarga(rem.fila, 'Foto del nivel', fotoUrl);
+    agregarIdBot(rem, idMensajeBot);
+    return;
+  }
   // La foto reemplaza a otra que ya había creado la recarga: se actualiza esa misma fila.
   const previa = idReemplazada ? todas.filter(function(r) { return r.lectura === idReemplazada; })[0] : null;
   if (previa) {
@@ -1151,7 +1173,34 @@ function manejarFotoRemision(msg, sede, blob, archivo, tMs, recFija, enCola) {
     return normalizar(x.sede) === normalizar(sede.nombre) && x.t <= tMs + 2 * 3600000 && tMs - x.t <= 48 * 3600000 &&
       (x.estado === 'Falta remisión' || (d.numero && x.remision === d.numero));
   }).sort(function(a, b) { return b.t - a.t; });
-  const rec = recFija ? (leerRecargas().filter(function(x) { return x.id === recFija.id || x.fila === recFija.fila; })[0] || recFija) : recs[0];
+  let rec = recFija ? (leerRecargas().filter(function(x) { return x.id === recFija.id || x.fila === recFija.fila; })[0] || recFija) : recs[0];
+  // No hay recarga esperando (nadie subió la foto del manómetro lleno): se crea con los niveles de la remisión, si cuadran.
+  let creadaDesdeRem = false, motivoNoCreada = '';
+  if (!rec && d.numero && d.antes !== null && d.despues !== null) {
+    const previa = ultimaLecturaAntes(sede, tMs + 60000);
+    const gasto = previa ? Number(previa.nivel) - d.antes : null;
+    if (d.despues - d.antes < 3) motivoNoCreada = 'la remisión no muestra una subida de nivel';
+    else if (d.despues > sede.capacidad + 5) motivoNoCreada = 'el nivel final (' + num(d.despues) + ') pasa la capacidad del tanque (' + num(sede.capacidad) + ')';
+    else if (gasto !== null && (gasto < -3 || gasto > 20)) motivoNoCreada = 'el nivel inicial de la remisión (' + num(d.antes) + ') no se parece a la última foto (' + num(previa.nivel) + ' pulg)';
+    else {
+      agregarFilaEn(HOJA_REC, 'Recargas', {
+        'ID': 'R-REM-' + d.numero,
+        'Fecha y hora': new Date(tMs),
+        'Sede': sede.nombre,
+        'Inicial (pulg)': d.antes,
+        'Final (pulg)': d.despues,
+        'Pulgadas recargadas': Math.round((d.despues - d.antes) * 10) / 10,
+        'N.º remisión': '',
+        'Estado': 'Falta remisión',
+        'Registró': '',
+        'Foto del nivel': '',
+        'IDs de mensajes del bot': '',
+        'ID de la lectura': DESDE_REMISION
+      });
+      rec = leerRecargas().filter(function(x) { return x.id === 'R-REM-' + d.numero; }).pop() || null;
+      creadaDesdeRem = !!rec;
+    }
+  }
   // La fecha va a mano: si la IA lee un año que no cuadra (2024 en vez de 2026), se usa el año de la recarga.
   if (d.fecha && rec && Math.abs(d.fecha.getTime() - rec.t) > 60 * 86400000) {
     const ajustada = new Date(new Date(rec.t).getFullYear(), d.fecha.getMonth(), d.fecha.getDate(), 12);
@@ -1165,8 +1214,9 @@ function manejarFotoRemision(msg, sede, blob, archivo, tMs, recFija, enCola) {
 
   if (!rec) {
     return responderEnTema(msg, cab + (leido.length ? leido.join('\n') + '\n' : '') +
-      '⚠️ No encontré una recarga reciente de ' + sede.nombre + ' esperando remisión.\n' +
-      '<b>Sube primero la foto del manómetro ya lleno</b> y luego vuelve a enviar la remisión.');
+      '⚠️ No encontré una recarga reciente de ' + sede.nombre + ' esperando remisión' +
+      (motivoNoCreada ? ', y no la registré solo con la remisión porque ' + motivoNoCreada : '') + '.\n' +
+      '<b>Sube la foto del manómetro</b> (sirve una de ahora) y luego vuelve a enviar la remisión, o corrige el nivel con <code>/corregir</code>.');
   }
   if (!d.numero) {
     const envN = responderEnTema(msg, cab + (leido.length ? leido.join('\n') + '\n' : '') +
@@ -1222,6 +1272,8 @@ function manejarFotoRemision(msg, sede, blob, archivo, tMs, recFija, enCola) {
     (notas.length ? '\n<i>' + notas.join(' ') + '</i>' : '') +
     (costo ? '\n' + costo : '') +
     (d.confianza === 'baja' ? '\n⚠️ <i>La letra a mano no se veía muy clara; revisa los números.</i>' : '') +
+    (creadaDesdeRem ? '\n\n🧾 <b>Registré la recarga con los datos de la remisión</b> (no había foto del manómetro lleno).' +
+      '\nCuando subas la próxima foto del manómetro, la confirmo con esa lectura.' : '') +
     '\n\n<i>¿Leí algo mal? Responde a este mensaje así:</i> <code>remisión ' + d.numero + ' antes ' +
     num(ini !== null ? ini : 11) + ' después ' + num(finalMan !== null ? finalMan : 74) + '</code>');
   if (env && env.ok) agregarIdBot(rec, env.result.message_id);
