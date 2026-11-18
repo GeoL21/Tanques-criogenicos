@@ -401,6 +401,11 @@ function responderEnTema(msg, html) {
 }
 
 /** Se ejecuta cada 5 minutos: trae lo nuevo del grupo y lo procesa. */
+/** Hora en que empezó esta ejecución: Apps Script corta a los 6 minutos, así que se deja margen. */
+const INICIO_EJECUCION = Date.now();
+const LIMITE_MS = 4 * 60000; // después de 4 min no se empieza nada nuevo (queda para la próxima revisión)
+function sinTiempo() { return Date.now() - INICIO_EJECUCION > LIMITE_MS; }
+
 function procesarTelegram() {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(5000)) return;
@@ -410,21 +415,24 @@ function procesarTelegram() {
     if (props.getProperty('COLUMNAS_V') !== VERSION_COLUMNAS) agregarColumnasRecargas();
     let offset = Number(props.getProperty('OFFSET') || 0);
     const r = telegram('getUpdates', { offset: offset, timeout: 0, allowed_updates: ['message'] });
-    try { reintentarPendientes(); } catch (e) { Logger.log('Reintentos: ' + e.message); }
-    try { reintentarRemisiones(); } catch (e) { Logger.log('Remisiones pendientes: ' + e.message); }
+    if (!sinTiempo()) try { reintentarPendientes(); } catch (e) { Logger.log('Reintentos: ' + e.message); }
+    if (!sinTiempo()) try { reintentarRemisiones(); } catch (e) { Logger.log('Remisiones pendientes: ' + e.message); }
     try { sincronizarCostos(); } catch (e) { Logger.log('Costos: ' + e.message); }
     if (!r.ok || !r.result.length) return;
-    r.result.forEach(function(u) {
+    for (let k = 0; k < r.result.length; k++) {
+      const u = r.result[k];
+      // Si ya va muy avanzado el tiempo, los mensajes que faltan quedan para la próxima revisión (no se pierden)
+      if (sinTiempo()) { Logger.log('Sin tiempo: quedan ' + (r.result.length - k) + ' mensajes para la próxima revisión'); break; }
       offset = u.update_id + 1;
       props.setProperty('OFFSET', String(offset)); // se guarda antes, para no repetir si algo falla
-      if (!u.message) return;
+      if (!u.message) continue;
       try {
         manejarMensaje(u.message);
       } catch (e) {
         Logger.log('Error con el mensaje ' + u.message.message_id + ': ' + e.stack);
         try { responderEnTema(u.message, 'No pude procesar esta foto por un error: <i>' + escaparHtml(e.message) + '</i>'); } catch (e2) {}
       }
-    });
+    }
   } finally {
     lock.releaseLock();
   }
@@ -1486,6 +1494,9 @@ function llamarGemini(prompt, blob) {
     if (iaEnPausa()) {
       return { errorIA: true, motivo: IA_NO_DISPONIBLE + ' (límite de uso, en pausa).' };
     }
+    if (sinTiempo()) {
+      return { errorIA: true, motivo: IA_NO_DISPONIBLE + ' (sin tiempo en esta revisión).' };
+    }
     let r = pedir(modelo);
     if (r.getResponseCode() === 404) { // el modelo ya no existe: se busca el vigente y se reintenta
       modelo = buscarModelo();
@@ -1499,7 +1510,7 @@ function llamarGemini(prompt, blob) {
     // Límite de uso (429): probar los otros modelos, que tienen su propio cupo gratis
     if (r.getResponseCode() === 429) {
       const otros = listaModelos().filter(function(m) { return m !== modelo; });
-      for (let i = 0; i < otros.length && r.getResponseCode() === 429; i++) {
+      for (let i = 0; i < otros.length && r.getResponseCode() === 429 && !sinTiempo(); i++) {
         const r2 = pedir(otros[i]);
         if (r2.getResponseCode() === 200) { modelo = otros[i]; props.setProperty('GEMINI_MODELO_AUTO', modelo); }
         if (r2.getResponseCode() !== 404) r = r2;
