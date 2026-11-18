@@ -1269,6 +1269,25 @@ function manejarFotoRemision(msg, sede, blob, archivo, tMs, recFija, enCola) {
     }
   }
   if (ini !== null && finalMan !== null) ponerEnRecarga(rec.fila, 'Pulgadas recargadas', Math.round((finalMan - ini) * 10) / 10);
+  // Recarga creada solo con la remisión: se agrega también la lectura del tanque lleno (nivel final de la remisión),
+  // para que el tablero, los días para recargar y el próximo consumo partan de ese nivel y no de la foto de antes.
+  if (rec.lectura === DESDE_REMISION && finalMan !== null) {
+    const idRem = 'T-REM-' + d.numero;
+    if (!leerLecturas().some(function(l) { return l.id === idRem; })) {
+      agregarFila({
+        'ID': idRem,
+        'Fecha y hora': new Date(rec.t),
+        'Sede': sede.nombre,
+        'Nivel (pulg)': finalMan,
+        'Movimiento': 'Recarga',
+        'Lectura': 'Corregida',
+        'Técnico': nombre,
+        'Nota de la lectura': 'Nivel tomado de la remisión N.º ' + d.numero + ' (no hubo foto del manómetro lleno).'
+      });
+      SpreadsheetApp.flush();
+      try { recalcularTodo(); } catch (e) { Logger.log('Recalcular tras remisión: ' + e.message); }
+    }
+  }
   if (d.despues !== null && finalMan !== null && Math.abs(d.despues - finalMan) > 3) {
     notas.push('La remisión dice ' + num(d.despues) + ' pulg después de llenar y el manómetro marcó ' + num(finalMan) + '; dejé el del manómetro.');
   }
