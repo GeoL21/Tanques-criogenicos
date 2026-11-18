@@ -1184,6 +1184,7 @@ function manejarFotoRemision(msg, sede, blob, archivo, tMs, recFija, enCola) {
   let rec = recFija ? (leerRecargas().filter(function(x) { return x.id === recFija.id || x.fila === recFija.fila; })[0] || recFija) : recs[0];
   // No hay recarga esperando (nadie subió la foto del manómetro lleno): se crea con los niveles de la remisión, si cuadran.
   let creadaDesdeRem = false, motivoNoCreada = '';
+  if (!rec && d.numero) rec = leerRecargas().filter(function(x) { return x.id === 'R-REM-' + d.numero; }).pop() || null;
   if (!rec && d.numero && d.antes !== null && d.despues !== null) {
     const previa = ultimaLecturaAntes(sede, tMs + 60000);
     const gasto = previa ? Number(previa.nivel) - d.antes : null;
@@ -1205,7 +1206,12 @@ function manejarFotoRemision(msg, sede, blob, archivo, tMs, recFija, enCola) {
         'IDs de mensajes del bot': '',
         'ID de la lectura': DESDE_REMISION
       });
-      rec = leerRecargas().filter(function(x) { return x.id === 'R-REM-' + d.numero; }).pop() || null;
+      // La fila se escribe por la API de Sheets: a veces la hoja tarda un momento en verla, así que se espera y se vuelve a leer
+      for (let intento = 0; intento < 4 && !rec; intento++) {
+        if (intento) Utilities.sleep(1500);
+        SpreadsheetApp.flush();
+        rec = leerRecargas().filter(function(x) { return x.id === 'R-REM-' + d.numero; }).pop() || null;
+      }
       creadaDesdeRem = !!rec;
     }
   }
