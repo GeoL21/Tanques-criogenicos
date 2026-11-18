@@ -1,10 +1,10 @@
 // Service worker: deja abrir el tablero sin internet con lo último descargado.
 // Si cambias los archivos de la lista, sube el número de versión (v1 -> v2).
-const VERSION = 'tanques-v32';
+const VERSION = 'tanques-v33';
 const ARCHIVOS = ['./', './index.html', './config.js', './manifest.webmanifest', './logo.jpg', './logo-crc.png', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(ARCHIVOS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(ARCHIVOS.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
